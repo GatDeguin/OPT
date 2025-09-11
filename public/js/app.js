@@ -1,3 +1,7 @@
+import { initUI, showToast } from './ui/ui.js';
+import { initSucursales } from './services/sucursales.js';
+import { initCabeceras } from './services/cabeceras.js';
+
 (function(){
 
   /* =====================================================================
@@ -5,65 +9,8 @@
   ===================================================================== */
   const fmtES = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 });
   const fmtMoney = (n) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits:0 }).format(n||0);
-  const htmlEl = document.documentElement;
 
-  // THEME
-  const THEME_KEY = 'bp-theme';
-  const savedTheme = localStorage.getItem(THEME_KEY);
-  htmlEl.dataset.theme = savedTheme || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  const themeIcon = document.getElementById('themeIcon');
-  function setIcon(){
-    if(!themeIcon) return;
-    themeIcon.innerHTML = (htmlEl.dataset.theme==='dark')
-      ? '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>'
-      : '<circle cx="12" cy="12" r="5"></circle><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>';
-  }
-  setIcon();
-  document.getElementById('themeToggle')?.addEventListener('click', ()=>{
-    htmlEl.dataset.theme = htmlEl.dataset.theme === 'dark' ? 'light' : 'dark';
-    localStorage.setItem(THEME_KEY, htmlEl.dataset.theme);
-    setIcon();
-  });
-
-  // NAV
-  const sections = {
-    dashboard: document.getElementById('dashboardSection'),
-    rutas: document.getElementById('rutasSection'),
-    ordenes: document.getElementById('ordenesSection'),
-    sucursales: document.getElementById('sucSection'),
-    atms: document.getElementById('atmsSection'),
-    cabeceras: document.getElementById('cabSection'),
-    otros: document.getElementById('otrosSection'),
-    choferes: document.getElementById('choferesSection'),
-    camiones: document.getElementById('camionesSection'),
-    costos: document.getElementById('costosSection'),
-    reportes: document.getElementById('reportesSection'),
-    config: document.getElementById('configSection'),
-    about: document.getElementById('aboutSection')
-  };
-  const topTitleText = document.getElementById('topTitleText');
-  document.getElementById('nav')?.addEventListener('click', (e)=>{
-    const btn = e.target.closest('button'); if(!btn) return;
-    document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    Object.values(sections).forEach(s=>s.classList.add('hidden'));
-    const target = btn.dataset.target || 'dashboard';
-    sections[target].classList.remove('hidden');
-    topTitleText.textContent = btn.dataset.name || 'Dashboard';
-    // Fix Leaflet sizing when becoming visible
-    setTimeout(()=>{
-      try{ if(window.routeMap) routeMap.invalidateSize(); if(window.sucMap) sucMap.invalidateSize(); if(window.atmMap) atmMap.invalidateSize(); }catch(e){}
-    }, 80);
-  });
-
-  // TOAST
-  const toast = document.getElementById('toast');
-  function showToast(text="Listo"){
-    toast.textContent = text;
-    toast.classList.add('show');
-    clearTimeout(showToast._t);
-    showToast._t = setTimeout(()=> toast.classList.remove('show'), 1600);
-  }
+  initUI();
 
   /* =====================================================================
      AUTH + SPLASH
@@ -315,84 +262,7 @@
     hist: load(DB.hist, [])
   };
 
-  // ========= Sucursales =========
-  (function(){
-    const tbody = document.getElementById('sucTbody');
-    const cntEl = document.getElementById('sucCount');
-    const qEl = document.getElementById('sucQ');
-    let sucMap, sucMarker;
-
-    function render(){
-      const q = (qEl.value||'').toLowerCase();
-      const arr = State.suc.filter(r=> !q || r.codigo.includes(q) || (r.nombre||'').toLowerCase().includes(q));
-      cntEl.textContent = arr.length;
-      tbody.innerHTML = arr.map(r => `
-        <tr data-cod="${r.codigo}">
-          <td>${r.codigo}</td><td>${r.nombre||''}</td><td class="right">${fmtCoord(r.lat)}</td><td class="right">${fmtCoord(r.lng)}</td><td>${r.cochera?'Sí':'No'}</td>
-        </tr>
-      `).join('');
-      [...tbody.querySelectorAll('tr')].forEach(tr=>{
-        tr.addEventListener('click', ()=>{
-          const cod = tr.dataset.cod;
-          const r = State.suc.find(x=>x.codigo===cod);
-          if(r && sucMap){ sucMarker.setLatLng([r.lat,r.lng]); sucMap.flyTo([r.lat,r.lng], 12, {duration:.6}); }
-        });
-      });
-    }
-    qEl?.addEventListener('input', render);
-
-    // CSV import/export
-    document.getElementById('sucImport')?.addEventListener('click', ()=> document.getElementById('sucImportInput').click());
-    document.getElementById('sucImportInput')?.addEventListener('change', (ev)=>{
-      const f = ev.target.files?.[0]; if(!f) return;
-      const reader = new FileReader();
-      reader.onload = (e)=>{
-        const {headers, rows} = csvParse(e.target.result);
-        const idx = {
-          codigo: headers.findIndex(h=>/codigo/i.test(h)),
-          nombre: headers.findIndex(h=>/nombre/i.test(h)),
-          lat: headers.findIndex(h=>/^lat/i.test(h)),
-          lng: headers.findIndex(h=>/^lng|long/i.test(h)),
-          cochera: headers.findIndex(h=>/cochera/i.test(h))
-        };
-        const out = rows.map(cells => {
-          const lat = parseNumber(cells[idx.lat]); const lng = parseNumber(cells[idx.lng]);
-          return { codigo: (cells[idx.codigo]||'').trim(), nombre:(cells[idx.nombre]||'').trim(), lat, lng, cochera: String(cells[idx.cochera]||'').toLowerCase().startsWith('s') };
-        }).filter(r=>r.codigo && r.nombre && isFinite(r.lat) && isFinite(r.lng));
-        if(out.length){ State.suc = out; save(DB.suc, State.suc); render(); showToast('Sucursales importadas'); }
-      };
-      reader.readAsText(f);
-      ev.target.value='';
-    });
-    document.getElementById('sucExport')?.addEventListener('click', ()=>{
-      csvExport(State.suc, ['codigo','nombre','lat','lng','cochera']);
-    });
-
-    // Mapa
-    waitForLeaflet().then(()=>{
-      const sk = document.getElementById('sucMapSkeleton'); const el = document.getElementById('sucMap'); if(!el) return;
-      sk.classList.add('hidden'); el.classList.remove('hidden');
-      sucMap = L.map('sucMap', { zoomControl:true, minZoom:3 }); 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'&copy; OpenStreetMap'}).addTo(sucMap);
-      sucMarker = L.marker([State.suc[0]?.lat||-34.60, State.suc[0]?.lng||-58.38]).addTo(sucMap);
-      sucMap.setView([State.suc[0]?.lat||-34.60, State.suc[0]?.lng||-58.38], 10);
-    });
-
-    // Quick actions
-    document.getElementById('sucNew')?.addEventListener('click', ()=>{
-      const cod = String(Math.max(0,...State.suc.map(r=>+r.codigo||0))+1).padStart(5,'0');
-      State.suc.push({codigo:cod, nombre:'Nueva', lat:-34.6, lng:-58.38, cochera:false});
-      save(DB.suc, State.suc); render();
-    });
-    document.getElementById('sucLocate')?.addEventListener('click', ()=>{
-      if(!navigator.geolocation) return showToast('Sin geolocalización');
-      navigator.geolocation.getCurrentPosition(pos=>{
-        sucMap && sucMap.flyTo([pos.coords.latitude, pos.coords.longitude], 12, {duration:.8});
-      });
-    });
-
-    render();
-  })();
+  initSucursales({ State, fmtCoord, csvParse, csvExport, waitForLeaflet, save, DB, parseNumber });
 
   // ========= ATMs =========
   (function(){
@@ -464,61 +334,7 @@
     render();
   })();
 
-  // ========= Cabeceras =========
-  (function(){
-    const tbody = document.getElementById('cabTbody');
-    const cntEl = document.getElementById('cabCount');
-    const qEl = document.getElementById('cabQ');
-
-    function render(){
-      const q = (qEl.value||'').toLowerCase();
-      const arr = State.cab.filter(r => !q || Object.values(r).some(v => (''+v).toLowerCase().includes(q)));
-      cntEl.textContent = arr.length;
-      tbody.innerHTML = arr.map(r => `
-        <tr><td>${r.codigo}</td><td>${r.nombre||''}</td><td>${r.direccion||''}</td><td>${r.localidad||''}</td><td>${r.supervisor||''}</td><td>${r.telefono||''}</td></tr>
-      `).join('');
-    }
-    qEl?.addEventListener('input', render);
-
-    document.getElementById('cabImport')?.addEventListener('click', ()=> document.getElementById('cabImportInput').click());
-    document.getElementById('cabImportInput')?.addEventListener('change', (ev)=>{
-      const f = ev.target.files?.[0]; if(!f) return;
-      const reader = new FileReader();
-      reader.onload = (e)=>{
-        const {headers, rows} = csvParse(e.target.result);
-        const idx = {
-          codigo: headers.findIndex(h=>/codigo/i.test(h)),
-          nombre: headers.findIndex(h=>/nombre/i.test(h)),
-          direccion: headers.findIndex(h=>/direccion/i.test(h)),
-          localidad: headers.findIndex(h=>/localidad/i.test(h)),
-          supervisor: headers.findIndex(h=>/supervisor/i.test(h)),
-          telefono: headers.findIndex(h=>/telefono/i.test(h))
-        };
-        const out = rows.map(cells => ({
-          codigo:(cells[idx.codigo]||'').trim(), nombre:(cells[idx.nombre]||'').trim(), direccion:(cells[idx.direccion]||'').trim(),
-          localidad:(cells[idx.localidad]||'').trim(), supervisor:(cells[idx.supervisor]||'').trim(), telefono:(cells[idx.telefono]||'').trim()
-        })).filter(r=>r.codigo && r.nombre);
-        if(out.length){ State.cab = out; save(DB.cab, State.cab); render(); showToast('Cabeceras importadas'); }
-      };
-      reader.readAsText(f);
-      ev.target.value='';
-    });
-    document.getElementById('cabExport')?.addEventListener('click', ()=> csvExport(State.cab, ['codigo','nombre','direccion','localidad','supervisor','telefono']));
-
-    document.getElementById('cabNew')?.addEventListener('click', ()=>{
-      const cod = String(Math.max(0,...State.cab.map(r=>parseInt(r.codigo)||0))+1).padStart(4,'0');
-      State.cab.push({codigo:cod, nombre:'Nueva', direccion:'—', localidad:'—', supervisor:'—', telefono:'—'});
-      save(DB.cab, State.cab); render();
-    });
-
-    render();
-
-    // Cargar cabeceras en select de rutas
-    const selOrigen = document.getElementById('selOrigen');
-    if(selOrigen){
-      selOrigen.innerHTML = '<option value="">—</option>' + State.cab.map(c => `<option value="${c.codigo}">${c.codigo} — ${c.nombre}</option>`).join('');
-    }
-  })();
+  initCabeceras({ State, csvParse, csvExport, save, DB });
 
   // ========= Otros Bancos =========
   (function(){
