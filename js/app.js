@@ -71,7 +71,8 @@ import { calcRouteStats } from './services/route-utils.mjs';
     loginForm?.addEventListener('submit', (ev)=>{
       ev.preventDefault();
       if(!userEl.value || !passEl.value){ err.textContent = 'Completá usuario y contraseña'; return; }
-      const u = (userEl.value||'').trim(); const p = passEl.value;
+      const u = (userEl.value||'').trim().toLowerCase();
+      const p = passEl.value.trim();
       const ok = !!u && !!p && ((USERS[u] && USERS[u].pwd===p) || (!USERS[u] && p==='bapro')); // fallback demo
       if(ok){
         const profile = USERS[u] || {name: u, role: 'invitado'};
