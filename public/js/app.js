@@ -5,47 +5,47 @@ import { calcRouteStats } from './services/route-utils.mjs';
 
 let bar, pie, line, lineCtx;
 
-function applyChartTheme(){
-  const cssVar = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  const text = cssVar('--chart-text') || '#6b7a8c';
-  const grid = cssVar('--chart-grid') || '#ebeff3';
-
-  Chart.defaults.color = text;
-  if(bar){
-    bar.options.scales.x.ticks.color = text;
-    bar.options.scales.y.ticks.color = text;
-    bar.options.scales.y.grid.color = grid;
-    bar.options.scales.y.grid.borderColor = grid;
-    bar.data.datasets[0].backgroundColor = cssVar('--chart-accent') || 'rgba(67,164,109,.85)';
-    bar.data.datasets[0].hoverBackgroundColor = cssVar('--chart-accent') || 'rgba(67,164,109,1)';
-    bar.update();
-  }
-  if(pie){
-    const bg1 = cssVar('--chart-accent-2') || '#3b9562';
-    const bg2 = cssVar('--brand-200') || '#c8ecd7';
-    pie.data.datasets[0].backgroundColor = [bg1, bg2];
-    pie.update();
-  }
-  if(line){
-    const ctx = lineCtx.getContext('2d');
-    const grad = ctx.createLinearGradient(0,0,0,160);
-    grad.addColorStop(0, cssVar('--chart-accent-soft') || 'rgba(67,164,109,.18)');
-    grad.addColorStop(1,'rgba(0,0,0,0)');
-
-    line.options.scales.x.ticks.color = text;
-    line.options.scales.y.ticks.color = text;
-    line.options.scales.y.grid.color = grid;
-    line.options.scales.y.grid.borderColor = grid;
-    line.data.datasets[0].borderColor = cssVar('--chart-accent-2') || '#3b9562';
-    line.data.datasets[0].backgroundColor = grad;
-    line.data.datasets[0].pointBorderColor = cssVar('--chart-accent-2') || '#3b9562';
-    line.data.datasets[1].borderColor = '#113322';
-    line.data.datasets[1].pointBorderColor = '#113322';
-    line.update();
-  }
-}
-
 (function(){
+
+  function applyChartTheme(){
+    const cssVar = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    const text = cssVar('--chart-text') || '#6b7a8c';
+    const grid = cssVar('--chart-grid') || '#ebeff3';
+
+    Chart.defaults.color = text;
+    if(bar){
+      bar.options.scales.x.ticks.color = text;
+      bar.options.scales.y.ticks.color = text;
+      bar.options.scales.y.grid.color = grid;
+      bar.options.scales.y.grid.borderColor = grid;
+      bar.data.datasets[0].backgroundColor = cssVar('--chart-accent') || 'rgba(67,164,109,.85)';
+      bar.data.datasets[0].hoverBackgroundColor = cssVar('--chart-accent') || 'rgba(67,164,109,1)';
+      bar.update();
+    }
+    if(pie){
+      const bg1 = cssVar('--chart-accent-2') || '#3b9562';
+      const bg2 = cssVar('--brand-200') || '#c8ecd7';
+      pie.data.datasets[0].backgroundColor = [bg1, bg2];
+      pie.update();
+    }
+    if(line){
+      const ctx = lineCtx.getContext('2d');
+      const grad = ctx.createLinearGradient(0,0,0,160);
+      grad.addColorStop(0, cssVar('--chart-accent-soft') || 'rgba(67,164,109,.18)');
+      grad.addColorStop(1,'rgba(0,0,0,0)');
+
+      line.options.scales.x.ticks.color = text;
+      line.options.scales.y.ticks.color = text;
+      line.options.scales.y.grid.color = grid;
+      line.options.scales.y.grid.borderColor = grid;
+      line.data.datasets[0].borderColor = cssVar('--chart-accent-2') || '#3b9562';
+      line.data.datasets[0].backgroundColor = grad;
+      line.data.datasets[0].pointBorderColor = cssVar('--chart-accent-2') || '#3b9562';
+      line.data.datasets[1].borderColor = '#113322';
+      line.data.datasets[1].pointBorderColor = '#113322';
+      line.update();
+    }
+  }
 
   /* =====================================================================
      UTILIDADES / ESTADO GLOBAL
