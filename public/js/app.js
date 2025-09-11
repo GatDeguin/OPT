@@ -10,7 +10,7 @@ import { initCabeceras } from './services/cabeceras.js';
   const fmtES = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 });
   const fmtMoney = (n) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits:0 }).format(n||0);
 
-  initUI();
+  initUI(applyChartTheme);
 
   /* =====================================================================
      AUTH + SPLASH
@@ -961,28 +961,6 @@ import { initCabeceras } from './services/cabeceras.js';
     // ===== Helper: Spanish number formatting =====
     const fmtES = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 });
 
-    // ===== THEME: load preference / toggle =====
-    const THEME_KEY = 'bp-theme';
-    const html = document.documentElement;
-    const saved = localStorage.getItem(THEME_KEY);
-    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    html.dataset.theme = saved ? saved : (prefersDark ? 'dark' : 'light');
-
-    const themeIcon = document.getElementById('themeIcon');
-    function setIcon(){
-      if(!themeIcon) return;
-      themeIcon.innerHTML = (html.dataset.theme==='dark')
-        ? '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>'
-        : '<circle cx="12" cy="12" r="5"></circle><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>';
-    }
-    setIcon();
-
-    document.getElementById('themeToggle')?.addEventListener('click', ()=>{
-      html.dataset.theme = html.dataset.theme === 'dark' ? 'light' : 'dark';
-      localStorage.setItem(THEME_KEY, html.dataset.theme);
-      setIcon();
-      applyChartTheme(); // re-tematiza charts cuando cambie el tema
-    });
 
     // ===== Sidebar ripple + active + routing =====
     const nav = document.getElementById('nav');
