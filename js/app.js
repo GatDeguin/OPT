@@ -3,6 +3,48 @@ import { initSucursales } from './services/sucursales.js';
 import { initCabeceras } from './services/cabeceras.js';
 import { calcRouteStats } from './services/route-utils.mjs';
 
+let bar, pie, line, lineCtx;
+
+function applyChartTheme(){
+  const cssVar = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const text = cssVar('--chart-text') || '#6b7a8c';
+  const grid = cssVar('--chart-grid') || '#ebeff3';
+
+  Chart.defaults.color = text;
+  if(bar){
+    bar.options.scales.x.ticks.color = text;
+    bar.options.scales.y.ticks.color = text;
+    bar.options.scales.y.grid.color = grid;
+    bar.options.scales.y.grid.borderColor = grid;
+    bar.data.datasets[0].backgroundColor = cssVar('--chart-accent') || 'rgba(67,164,109,.85)';
+    bar.data.datasets[0].hoverBackgroundColor = cssVar('--chart-accent') || 'rgba(67,164,109,1)';
+    bar.update();
+  }
+  if(pie){
+    const bg1 = cssVar('--chart-accent-2') || '#3b9562';
+    const bg2 = cssVar('--brand-200') || '#c8ecd7';
+    pie.data.datasets[0].backgroundColor = [bg1, bg2];
+    pie.update();
+  }
+  if(line){
+    const ctx = lineCtx.getContext('2d');
+    const grad = ctx.createLinearGradient(0,0,0,160);
+    grad.addColorStop(0, cssVar('--chart-accent-soft') || 'rgba(67,164,109,.18)');
+    grad.addColorStop(1,'rgba(0,0,0,0)');
+
+    line.options.scales.x.ticks.color = text;
+    line.options.scales.y.ticks.color = text;
+    line.options.scales.y.grid.color = grid;
+    line.options.scales.y.grid.borderColor = grid;
+    line.data.datasets[0].borderColor = cssVar('--chart-accent-2') || '#3b9562';
+    line.data.datasets[0].backgroundColor = grad;
+    line.data.datasets[0].pointBorderColor = cssVar('--chart-accent-2') || '#3b9562';
+    line.data.datasets[1].borderColor = '#113322';
+    line.data.datasets[1].pointBorderColor = '#113322';
+    line.update();
+  }
+}
+
 (function(){
 
   /* =====================================================================
@@ -1035,48 +1077,9 @@ dashboard: document.getElementById('dashboardSection'),
     // ===== Chart.js theme helpers =====
     function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim() }
 
-    function applyChartTheme(){
-      const text = cssVar('--chart-text') || '#6b7a8c';
-      const grid = cssVar('--chart-grid') || '#ebeff3';
-
-      Chart.defaults.color = text;
-      if(bar){
-        bar.options.scales.x.ticks.color = text;
-        bar.options.scales.y.ticks.color = text;
-        bar.options.scales.y.grid.color = grid;
-        bar.options.scales.y.grid.borderColor = grid;
-        bar.data.datasets[0].backgroundColor = cssVar('--chart-accent') || 'rgba(67,164,109,.85)';
-        bar.data.datasets[0].hoverBackgroundColor = cssVar('--chart-accent') || 'rgba(67,164,109,1)';
-        bar.update();
-      }
-      if(pie){
-        const bg1 = cssVar('--chart-accent-2') || '#3b9562';
-        const bg2 = cssVar('--brand-200') || '#c8ecd7';
-        pie.data.datasets[0].backgroundColor = [bg1, bg2];
-        pie.update();
-      }
-      if(line){
-        const ctx = lineCtx.getContext('2d');
-        const grad = ctx.createLinearGradient(0,0,0,160);
-        grad.addColorStop(0, cssVar('--chart-accent-soft') || 'rgba(67,164,109,.18)');
-        grad.addColorStop(1,'rgba(0,0,0,0)');
-
-        line.options.scales.x.ticks.color = text;
-        line.options.scales.y.ticks.color = text;
-        line.options.scales.y.grid.color = grid;
-        line.options.scales.y.grid.borderColor = grid;
-        line.data.datasets[0].borderColor = cssVar('--chart-accent-2') || '#3b9562';
-        line.data.datasets[0].backgroundColor = grad;
-        line.data.datasets[0].pointBorderColor = cssVar('--chart-accent-2') || '#3b9562';
-        line.data.datasets[1].borderColor = '#113322';
-        line.data.datasets[1].pointBorderColor = '#113322';
-        line.update();
-      }
-    }
-
     // ===== CHARTS (Dashboard) =====
     const barCtx = document.getElementById('montosChart');
-    const bar = new Chart(barCtx, {
+    bar = new Chart(barCtx, {
       type: 'bar',
       data: {
         labels: ['mar. 9','mar. 10','mar. 12','mar. 12','mar. 14'],
@@ -1108,7 +1111,7 @@ dashboard: document.getElementById('dashboardSection'),
     });
 
     const pieCtx = document.getElementById('entregasChart');
-    const pie = new Chart(pieCtx, {
+    pie = new Chart(pieCtx, {
       type: 'doughnut',
       data: {
         labels: ['Sucursales','ATMs'],
@@ -1121,12 +1124,12 @@ dashboard: document.getElementById('dashboardSection'),
       }
     });
 
-    const lineCtx = document.getElementById('fallidasChart');
+    lineCtx = document.getElementById('fallidasChart');
     const grad = lineCtx.getContext('2d').createLinearGradient(0,0,0,160);
     grad.addColorStop(0,cssVar('--chart-accent-soft') || 'rgba(67,164,109,.18)');
     grad.addColorStop(1,'rgba(67,164,109,0)');
 
-    const line = new Chart(lineCtx, {
+    line = new Chart(lineCtx, {
       type: 'line',
       data: {
         labels: ['abr. 2','abr. 4','abr. 6','abr. 7','abr. 8','abr. 10','abr. 4','abr. 10','abr. 10'],
