@@ -6,7 +6,7 @@ export function showToast(text = "Listo") {
   showToast._t = setTimeout(() => toast.classList.remove('show'), 1600);
 }
 
-export function initUI() {
+export function initUI(onThemeChange) {
   const htmlEl = document.documentElement;
   const THEME_KEY = 'bp-theme';
   const savedTheme = localStorage.getItem(THEME_KEY);
@@ -23,6 +23,7 @@ export function initUI() {
     htmlEl.dataset.theme = htmlEl.dataset.theme === 'dark' ? 'light' : 'dark';
     localStorage.setItem(THEME_KEY, htmlEl.dataset.theme);
     setIcon();
+    if (typeof onThemeChange === 'function') onThemeChange();
   });
 
   const sections = {
