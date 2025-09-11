@@ -29,6 +29,14 @@ fetch('/sucursales')
   .then(data => console.log(data));
 ```
 
+## Tests
+
+Ejecuta las pruebas con:
+
+```bash
+npm test
+```
+
 ## Despliegue
 
 Suba los archivos al branch configurado de GitHub Pages (por defecto
