@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "start": "node server.js"
   },
   "keywords": [],
   "author": "",
@@ -14,5 +15,8 @@
   "type": "commonjs",
   "devDependencies": {
     "vite": "^7.1.5"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
   }
 }

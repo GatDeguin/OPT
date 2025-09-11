@@ -12,15 +12,24 @@ mantenimiento y el despliegue en **GitHub Pages**.
 
 ## Uso local
 
-Abra `index.html` directamente en el navegador o sirva la carpeta con
-un servidor simple, por ejemplo:
+Instale las dependencias y levante el servidor Express:
 
 ```bash
-npx serve .
+npm install
+npm start
+```
+
+El servidor sirve los archivos estáticos y expone una API en `http://localhost:3000`.
+
+Ejemplo de consumo desde el frontend:
+
+```js
+fetch('/sucursales')
+  .then(r => r.json())
+  .then(data => console.log(data));
 ```
 
 ## Despliegue
 
 Suba los archivos al branch configurado de GitHub Pages (por defecto
 `main`). GitHub publicará automáticamente el contenido estático.
-
