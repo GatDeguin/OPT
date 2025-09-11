@@ -7,34 +7,60 @@ mantenimiento y el despliegue en **GitHub Pages**.
 ## Estructura
 
 - `index.html`: punto de entrada de la app.
-- `css/styles.css`: estilos globales.
-- `js/app.js`: lógica de la aplicación.
+- `public/js/app.js`: inicializa la interfaz, autenticación y utilidades.
+- `public/js/services/sucursales.js`: gestiona la tabla y el mapa de sucursales.
+- `public/js/services/cabeceras.js`: administra las cabeceras y su importación CSV.
+- `public/js/ui/ui.js`: utilidades de interfaz (tema, navegación y toasts).
+- `server.js`: servidor Express que sirve estáticos y expone `/sucursales`.
 
-## Uso local
-
-Instale las dependencias y levante el servidor Express:
+## Instalación
 
 ```bash
 npm install
-npm start
 ```
 
-El servidor sirve los archivos estáticos y expone una API en `http://localhost:3000`.
+## Servidor de desarrollo
 
-Ejemplo de consumo desde el frontend:
+Levanta Vite con recarga en caliente:
 
-```js
-fetch('/sucursales')
-  .then(r => r.json())
-  .then(data => console.log(data));
+```bash
+npm run dev
+```
+
+## Construcción de producción
+
+Genera la carpeta `dist/` lista para publicar:
+
+```bash
+npm run build
+```
+
+## Servidor Node
+
+Sirve los archivos estáticos y la API de ejemplo:
+
+```bash
+npm start
 ```
 
 ## Tests
 
-Ejecuta las pruebas con:
+Ejecuta la suite de pruebas con Jest:
 
 ```bash
 npm test
+```
+
+## Arquitectura
+
+```mermaid
+graph TD
+    A[index.html] --> B[app.js]
+    B --> C[sucursales.js]
+    B --> D[cabeceras.js]
+    B --> E[ui.js]
+    B -->|fetch /sucursales| F[server.js]
+    F --> G[(Datos)]
 ```
 
 ## Despliegue
