@@ -181,7 +181,9 @@ let bar, pie, line, lineCtx;
   function parseNumber(x){
     if(typeof x === 'number') return x;
     if(!x) return NaN;
-    const s = String(x).trim().replace(/\./g,'').replace(',', '.').replace(/[^0-9\.\-]/g, '');
+    let s = String(x).trim();
+    if(s.includes(',')) s = s.replace(/\./g,'').replace(',', '.');
+    s = s.replace(/[^0-9\.\-]/g, '');
     return parseFloat(s);
   }
   function haversine(lat1, lon1, lat2, lon2){
