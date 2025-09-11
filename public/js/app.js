@@ -36,8 +36,20 @@ import { calcRouteStats } from './services/route-utils.mjs';
     const splash    = document.getElementById('splash');
 
     function getSession(){ try{ return JSON.parse(localStorage.getItem(AUTH_KEY)) || null; }catch(e){ return null; } }
-    function setSession(s){ localStorage.setItem(AUTH_KEY, JSON.stringify(s)); }
-    function clearSession(){ localStorage.removeItem(AUTH_KEY); }
+    function setSession(s){
+      try {
+        localStorage.setItem(AUTH_KEY, JSON.stringify(s));
+      } catch (e) {
+        // Fallback when storage is unavailable (e.g. private mode)
+      }
+    }
+    function clearSession(){
+      try {
+        localStorage.removeItem(AUTH_KEY);
+      } catch (e) {
+        // ignore
+      }
+    }
 
     function isSessionValid(s){
       if(!s || !s.user) return false;
