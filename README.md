@@ -1,6 +1,6 @@
-# OptiRutas
+# Optimizador de Rutas
 
-Aplicación web estática para Banco Provincia. El código se modularizó
+Aplicación web estática. El código se modularizó
 separando estilos y scripts en carpetas dedicadas para facilitar el
 mantenimiento y el despliegue en **GitHub Pages**.
 
