@@ -39,5 +39,11 @@ npm test
 
 ## Despliegue
 
-Suba los archivos al branch configurado de GitHub Pages (por defecto
-`main`). GitHub publicará automáticamente el contenido estático.
+Cada commit en `main` ejecuta un workflow de GitHub Actions que:
+
+1. Instala dependencias y ejecuta los tests.
+2. Genera la carpeta `dist/` mediante `npm run build`.
+3. Publica ese contenido en la rama `gh-pages`.
+
+Configure GitHub Pages para tomar los archivos desde `gh-pages` y el sitio
+se actualizará automáticamente tras cada push a `main`.
