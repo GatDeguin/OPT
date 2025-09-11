@@ -1,6 +1,7 @@
 import { initUI, showToast } from './ui/ui.js';
 import { initSucursales } from './services/sucursales.js';
 import { initCabeceras } from './services/cabeceras.js';
+import { calcRouteStats } from './services/route-utils.mjs';
 
 (function(){
 
@@ -719,24 +720,10 @@ import { initCabeceras } from './services/cabeceras.js';
     function updateSummary(){
       document.getElementById('sumPuntos').textContent = currentRoute.length;
       document.getElementById('sumCamiones').textContent = document.getElementById('nCamiones').value || 1;
-      // calcular monto pico y tiempo estimado
       const origen = State.cab.find(c=>c.codigo===selOrigen.value);
-      const pts = currentRoute;
-      let maxMonto = 0, carga = 0;
-      let distKm = 0, min = 0;
-      let last = origen ? {lat: parseNumber(origen.lat), lng: parseNumber(origen.lng)} : null;
-      for(const p of pts){
-        if(last){ distKm += haversine(last.lat,last.lng,p.lat,p.lng); }
-        min += stopTimeFor(p.tipo);
-        carga += (p.monto||0 < 0 ? 0 : (p.monto||0)); // solo sumo abastecimientos como descarga del camión? ajustable
-        maxMonto = Math.max(maxMonto, carga);
-        last = p;
-      }
-      if(last && origen){ distKm += haversine(last.lat,last.lng, parseNumber(origen.lat), parseNumber(origen.lng)); }
-      const tiempoTraslado = distKm / (cfg.vel||40) * 60 * (cfg.trafficFactor||1);
-      const totalMin = Math.round(min + tiempoTraslado);
-      document.getElementById('sumMonto').textContent = fmtMoney(maxMonto);
-      document.getElementById('sumTiempo').textContent = `${Math.floor(totalMin/60)}:${String(totalMin%60).padStart(2,'0')} h`;
+      const stats = calcRouteStats(origen, currentRoute, cfg, {haversine, stopTimeFor, parseNumber});
+      document.getElementById('sumMonto').textContent = fmtMoney(stats.maxMonto);
+      document.getElementById('sumTiempo').textContent = `${Math.floor(stats.totalMin/60)}:${String(stats.totalMin%60).padStart(2,'0')} h`;
     }
 
     // ===================== OPTIMIZACIÓN =====================
@@ -748,6 +735,7 @@ import { initCabeceras } from './services/cabeceras.js';
 
       // Construir lista de puntos con prioridad
       let pts = currentRoute.map(p=> ({...p}));
+      if(pts.length===0){ ctl.fail('Agregá al menos un punto'); return; }
       // Aplica prioridades: manual ★, abastecimientos primero, descargas altas antes
       pts.sort((a,b)=>{
         const pa = (a.priority? -1000:0) + (prioAbast.checked && /^abastec/i.test(a.servicio||'') ? -100 : 0) + (prioDescAlta.checked ? -Math.sign(-(a.monto||0)) * Math.abs(a.monto||0)/1e6 : 0);
@@ -773,7 +761,11 @@ import { initCabeceras } from './services/cabeceras.js';
         orderIdx = twoOptImprove(origen, pts, orderIdx);
       }
 
-      currentRoute = orderIdx.map(i => pts[i]);
+      const newRoute = orderIdx.map(i => pts[i]);
+      const stats = calcRouteStats(origen, newRoute, cfg, {haversine, stopTimeFor, parseNumber});
+      if(stats.maxMonto > cfg.maxMonto){ ctl.fail('Ruta supera el monto máximo permitido'); return; }
+      if(stats.totalMin > cfg.maxMin){ ctl.fail('Ruta excede el tiempo máximo permitido'); return; }
+      currentRoute = newRoute;
       draw();
       ctl.finish('Optimización completada');
       addRecent();
