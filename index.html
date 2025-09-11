@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Banco Provincia — OptiRutas v8 (Dashboard · Rutas · Órdenes · ATMs · Sucursales · Cabeceras · Otros)</title>
+
+  <!-- Fuentes y librerías -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+
+  <!-- Leaflet (mapas) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <link rel="stylesheet" href="/css/styles.css">
+
+  
+
+
+
+
+
+
+  <script type="module" crossorigin src="/assets/index-B5Qt9EMX.js"></script>
+</head>
+<body>
+
+  <!-- ===== SPLASH ===== -->
+  <div id="splash" class="splash" aria-hidden="true">
+    <!-- El usuario debe colocar splash.png al lado de index -->
+    <img src="splash.png" alt="OptiRutas" />
+  </div>
+
+  <!-- ===== LOGIN ===== -->
+  <div id="loginView" class="login-view" role="dialog" aria-label="Iniciar sesión">
+    <div class="login-container">
+      <div class="logo">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/Logo_Banco_Provincia.svg/1024px-Logo_Banco_Provincia.svg.png" alt="Banco Provincia" />
+        <h1>Banco <span>Provincia</span></h1>
+      </div>
+      <h2>Iniciar sesión</h2>
+      <form id="loginForm" autocomplete="on" novalidate>
+        <div class="input-group">
+          <label for="usuario">Usuario</label>
+          <input type="text" id="usuario" placeholder="1001@oper" required autofocus />
+        </div>
+        <div class="input-group">
+          <label for="password">Contraseña</label>
+          <input type="password" id="password" placeholder="••••••••" required />
+        </div>
+        <div class="row">
+          <label class="remember"><input type="checkbox" id="remember" /> Recordarme</label>
+          <a href="#" id="fakeForgot" style="color:#9ad6b0;font-weight:800; text-decoration:none">¿Olvidaste tu clave?</a>
+        </div>
+        <button class="btn" id="loginBtn" type="submit">Iniciar sesión</button>
+        <div class="error" id="loginError" aria-live="polite"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== APP ===== -->
+  <div id="appRoot" class="app hidden" aria-hidden="true">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="menu">
+        <h1><span class="logo" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20.5 3.5C14 4 6 9.5 6 15.5C6 17.985 8.015 20 10.5 20C16.5 20 22 12 20.5 3.5Z" fill="#9ee3b4"/><path d="M3 21C6 16 10.5 12.5 14.5 10.5" stroke="#d9f6df" stroke-width="2" stroke-linecap="round"/></svg>
+        </span>Banco Provincia</h1>
+
+        <nav class="nav" id="nav">
+          <button class="active" data-name="Dashboard" data-target="dashboard">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 19l4-7 4 3 4-8 4 12" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="txt">Dashboard</span>
+          </button>
+          <button data-name="Rutas" data-target="rutas">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 6h5l3 3h8M4 18h10l3-4h3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="txt">Rutas</span>
+          </button>
+          <button data-name="Órdenes" data-target="ordenes">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 5h16v14H4z"/><path d="M7 8h10M7 12h10M7 16h6"/></svg>
+            <span class="txt">Órdenes</span>
+          </button>
+          <button data-name="Sucursales" data-target="sucursales">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 9l9-6 9 6-9 6-9-6z"/><path d="M21 15l-9 6-9-6"/><path d="M3 9l9 6 9-6"/></svg>
+            <span class="txt">Sucursales</span>
+          </button>
+          <button data-name="ATMs" data-target="atms">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4v4m8-4v4"/></svg>
+            <span class="txt">ATMs</span>
+          </button>
+          <button data-name="Cabeceras" data-target="cabeceras">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 7l1.5-3h9L18 7M6 7h12l-1 12H7L6 7Z"/><path d="M9 11h6" stroke-linecap="round"/></svg>
+            <span class="txt">Cabeceras</span>
+          </button>
+          <button data-name="Otros Bancos" data-target="otros">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+            <span class="txt">Otros Bancos</span>
+          </button>
+          <button data-name="Choferes" data-target="choferes">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="3"/><path d="M4 20c1.5-4 6.5-6 8-6s6.5 2 8 6"/></svg>
+            <span class="txt">Choferes</span>
+          </button>
+          <button data-name="Camiones" data-target="camiones">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="7" width="10" height="8" rx="1"/><path d="M13 10h4l3 3v2h-2"/><circle cx="7" cy="18" r="1.5"/><circle cx="17" cy="18" r="1.5"/></svg>
+            <span class="txt">Camiones</span>
+          </button>
+          <button data-name="Costos" data-target="costos">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></svg>
+            <span class="txt">Costos</span>
+          </button>
+          <button data-name="Reportes" data-target="reportes">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+            <span class="txt">Reportes</span>
+          </button>
+          <button data-name="Configuración" data-target="config">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6l-.09.1a2 2 0 1 1-3.2 0l-.09-.1a1.65 1.65 0 0 0-1-.6 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1l-.1-.09a2 2 0 1 1 0-3.2l.1-.09a1.65 1.65 0 0 0 .6-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 6.94 3.9l.06.06A1.65 1.65 0 0 0 8 4.6c.38 0 .74-.14 1-.4l.09-.1a2 2 0 1 1 3.2 0l.09.1c.26.26.62.4 1 .4.63 0 1.22-.25 1.65-.69l.06-.06A2 2 0 1 1 20.1 6.94l-.06.06c-.46.43-.7 1.02-.7 1.65 0 .38.14.74.4 1l.1.09a1.65 1.65 0 0 0 .6 1z"/></svg>
+            <span class="txt">Configuración</span>
+          </button>
+          <button data-name="Acerca de" data-target="about">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <circle cx="12" cy="12" r="9"></circle>
+              <line x1="12" y1="10" x2="12" y2="16"></line>
+              <circle cx="12" cy="7" r="1" fill="currentColor"></circle>
+            </svg>
+            <span class="txt">Acerca de</span>
+          </button>
+        </nav>
+      </div>
+      <div class="brand" aria-hidden="true">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="2" y="2" width="20" height="20" rx="6" fill="#2b865b"/>
+          <path d="M7 16c2.5-3.5 6.5-6 10-7-1 5-5 9-10 7z" fill="#bdf1cc"/>
+        </svg>
+        <div>
+          <div style="font-weight:800;letter-spacing:.2px">Banco</div>
+          <div style="opacity:.7">Provincia</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <header class="topbar">
+        <div class="title" id="topTitle">
+          <span class="mark" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M12 3l3 7h7l-6 4 2 7-6-4-6 4 2-7-6-4h7l3-7z"/></svg>
+          </span>
+          <span id="topTitleText">Dashboard</span>
+        </div>
+        <div class="actions">
+          <button class="icon-btn" aria-label="Notificaciones" data-tip="Notificaciones">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .53-.21 1.04-.59 1.41L4 17h5"/><path d="M9 20a3 3 0 0 0 6 0"/></svg>
+          </button>
+          <button class="icon-btn" id="themeToggle" aria-label="Cambiar tema" data-tip="Cambiar tema">
+            <svg id="themeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </button>
+          <span class="chip muted hidden" id="userChip" style="user-select:none"></span>
+          <button class="icon-btn" id="logoutBtn" aria-label="Cerrar sesión" data-tip="Cerrar sesión">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8">
+              <path d="M10 17l-1 0a6 6 0 110-10h1" stroke-linecap="round"/>
+              <path d="M14 8l4 4-4 4" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M18 12H9" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- ===== Dashboard ===== -->
+      <section class="content" id="dashboardSection" aria-label="Dashboard">
+        <div class="stats">
+          <div class="card stat fade-in" style="animation-delay:.02s">
+            <div class="circle"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-650)" stroke-width="1.8"><path d="M3 21l4-7 4 3 4-8 4 12" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <div><div class="value" data-count="12">12</div><div class="label">Rutas</div></div>
+          </div>
+          <div class="card stat fade-in" style="animation-delay:.06s">
+            <div class="circle"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-650)" stroke-width="1.7"><path d="M4 18c3-5 7-5 10-10 1.5-2.1 3-3 6-3" stroke-linecap="round"/><path d="M15 14c2.5-1 4-1 5.5 0" stroke-linecap="round"/></svg></div>
+            <div><div class="value" data-count="427">427</div><div class="label">Km</div></div>
+          </div>
+          <div class="card stat fade-in" style="animation-delay:.1s">
+            <div class="circle"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-650)" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 3" stroke-linecap="round"/></svg></div>
+            <div><div class="value" data-count="8.2" data-decimal="," data-fixed="1">8,2</div><div class="label">Horas</div></div>
+          </div>
+          <div class="card stat fade-in" style="animation-delay:.14s">
+            <div class="circle"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-650)" stroke-width="1.8"><path d="M6 6l12 12M6 18L18 6" stroke-linecap="round"/></svg></div>
+            <div><div class="value" data-count="5">5</div><div class="label">No servidos</div></div>
+          </div>
+        </div>
+
+        <div class="panels">
+          <div class="panel fade-in" style="animation-delay:.18s">
+            <h3>Montos Transportados</h3>
+            <div class="chart-wrap"><canvas id="montosChart" height="172"></canvas></div>
+          </div>
+          <div class="panel fade-in" style="animation-delay:.22s">
+            <h3>Desglose de Entregas con Éxito</h3>
+            <div class="chart-wrap" style="height:200px">
+              <canvas id="entregasChart"></canvas>
+              <div class="pie-side-label left" id="pieLeft">31,3 %</div>
+              <div class="pie-side-label right" id="pieRight">68,7 %</div>
+            </div>
+            <div class="legend">
+              <div class="item"><span class="dot" style="background:var(--brand-650)"></span> Sucursales</div>
+              <div class="item"><span class="dot" style="background:var(--brand-200)"></span> ATMs</div>
+            </div>
+          </div>
+          <div class="panel panel-wide fade-in" style="animation-delay:.26s">
+            <h3>Entregas Fallidas y Exitosas</h3>
+            <div class="chart-wrap"><canvas id="fallidasChart" height="160"></canvas></div>
+          </div>
+        </div>
+
+        <div class="table card fade-in" style="animation-delay:.30s">
+          <header><h3>Rutas Recientes</h3></header>
+          <div class="body">
+            <table aria-label="Rutas recientes">
+              <thead><tr><th>Ruta</th><th>Paradas</th><th>Vehículo</th><th>Horas</th><th>Kilómetros</th></tr></thead>
+              <tbody id="recentRoutes"><tr><td>Ruta 1</td><td>9</td><td>Camión 101</td><td>17:20</td><td>874</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== RUTAS ===== -->
+      <section class="content hidden" id="rutasSection" aria-label="Rutas">
+        <div class="toolbar">
+          <div class="left">
+            <span class="pill">
+              <label for="selOrigen" style="font-weight:800;color:var(--muted-text)">Cabecera</label>
+              <select id="selOrigen" style="all:unset;border:1px solid var(--line-clr);padding:8px 10px;border-radius:10px;min-width:180px;font-weight:800"><option value="">—</option></select>
+            </span>
+            <span class="pill">
+              <label for="nCamiones" style="font-weight:800;color:var(--muted-text)">Camiones</label>
+              <input id="nCamiones" type="number" min="1" value="1" style="all:unset;border:1px solid var(--line-clr);padding:8px 10px;border-radius:10px;width:70px;font-weight:800" />
+            </span>
+            <span class="pill">
+              <label><input type="checkbox" id="prioAbast" checked /> Abastecimientos primero</label>
+            </span>
+            <span class="pill">
+              <label><input type="checkbox" id="prioDescargaAlta" /> Descargar montos altos antes</label>
+            </span>
+          </div>
+          <div class="right">
+            <button class="chip" id="btnOptimizar" data-tip="Optimizar (A* + 2-opt)">Optimizar</button>
+            <button class="chip" id="btnTransito" data-tip="Consultar tránsito/Simular">Tránsito</button>
+            <button class="chip" id="btnExportar" data-tip="Abrir en Google Maps">Exportar</button>
+            <button class="chip" id="btnAprobar" data-tip="Aprobar y agregar al historial" style="background: linear-gradient(180deg, rgba(47,187,107,.24), rgba(47,187,107,.08)); border-color:rgba(47,187,107,.32)">Aprobar</button>
+          </div>
+        </div>
+
+        <div class="split">
+          <!-- LISTA DE PUNTOS -->
+          <section class="card" aria-labelledby="ptsTitle">
+            <div class="card-header" style="padding:12px 16px;border-bottom:1px solid var(--line-clr);display:flex;align-items:center;justify-content:space-between">
+              <div class="card-title" id="ptsTitle" style="font-weight:800">Puntos disponibles</div>
+              <div class="row">
+                <div class="search">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                  <input id="ptsQ" placeholder="Buscar (código/nombre)" />
+                </div>
+                <span class="chip muted">Mostrando <strong id="ptsCount">0</strong></span>
+                <button class="chip" id="addFromOrdenes" data-tip="Agregar órdenes seleccionadas">+ Órdenes</button>
+              </div>
+            </div>
+            <div class="card-body" style="overflow:auto; max-height:520px">
+              <table class="table" id="ptsTable" role="grid" aria-label="Listado de puntos" style="border:0">
+                <thead>
+                  <tr>
+                    <th>Tipo</th>
+                    <th>Código/Nombre</th>
+                    <th class="right">Lat</th>
+                    <th class="right">Lng</th>
+                    <th class="right">Monto</th>
+                    <th>Servicio</th>
+                    <th>Priorizar</th>
+                    <th>Agregar</th>
+                  </tr>
+                </thead>
+                <tbody id="ptsTbody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- MAPA RUTA -->
+          <section class="card" aria-labelledby="mapTitle">
+            <div class="card-header" style="padding:12px 16px;border-bottom:1px solid var(--line-clr);display:flex;align-items:center;justify-content:space-between">
+              <div class="card-title" id="mapTitle" style="font-weight:800">Ruta manual / optimizada</div>
+              <div class="row">
+                <button class="chip" id="btnLimpiarRuta">Limpiar</button>
+                <button class="chip" id="btnDeshacer">Deshacer</button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="map-skeleton" id="routeMapSkeleton">Cargando mapa…</div>
+              <div id="routeMap" class="hidden" role="application" aria-label="Mapa de Rutas"></div>
+            </div>
+            <div class="card-footer" style="padding:12px 16px;border-top:1px solid var(--line-clr)">
+              <div class="route-summary" id="routeSummary">
+                <div class="kv"><small>Puntos</small><div id="sumPuntos">0</div></div>
+                <div class="kv"><small>Camiones comisión</small><div id="sumCamiones">1</div></div>
+                <div class="kv"><small>Monto transportado (pico)</small><div id="sumMonto">$ 0</div></div>
+                <div class="kv"><small>Tiempo estimado</small><div id="sumTiempo">0:00 h</div></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- RUTA ACTUAL -->
+          <section class="card" style="grid-column:1/-1">
+            <div class="card-header" style="padding:12px 16px;border-bottom:1px solid var(--line-clr);display:flex;align-items:center;justify-content:space-between">
+              <div class="card-title" style="font-weight:800">Paradas de la ruta (orden manual/opt.)</div>
+            </div>
+            <div class="card-body" style="overflow:auto; max-height:320px">
+              <table class="table" style="border:0">
+                <thead><tr><th>#</th><th>Tipo</th><th>Nombre</th><th class="right">Monto</th><th>Servicio</th><th>Quitar</th></tr></thead>
+                <tbody id="rutaTbody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- HISTORIAL -->
+          <section class="card" style="grid-column:1/-1">
+            <div class="card-header" style="padding:12px 16px;border-bottom:1px solid var(--line-clr);display:flex;align-items:center;justify-content:space-between">
+              <div class="card-title" style="font-weight:800">Historial de Rutas</div>
+              <div class="row">
+                <button class="chip" id="btnExportHist">Exportar Historial</button>
+                <button class="chip" id="btnImportHist">Importar Historial</button>
+                <input type="file" id="histImportInput" accept=".json" class="hidden">
+              </div>
+            </div>
+            <div class="card-body" style="overflow:auto; max-height:260px">
+              <table class="table" style="border:0">
+                <thead><tr><th>Fecha</th><th>Nombre</th><th>Paradas</th><th>Tiempo</th><th>Monto pico</th><th>Estado</th><th>Acciones</th></tr></thead>
+                <tbody id="histTbody"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <!-- ===== ÓRDENES ===== -->
+      <section class="content hidden" id="ordenesSection" aria-label="Órdenes">
+        <div class="row">
+          <div class="search">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <input id="ordQ" placeholder="Buscar por código/nombre/fecha" />
+          </div>
+          <span class="chip muted">Mostrando <strong id="ordCount">0</strong></span>
+          <div class="row" style="margin-left:auto">
+            <button class="chip" id="ordNew">Nuevo</button>
+            <button class="chip" id="ordImport">Importar CSV</button>
+            <button class="chip" id="ordExport">Exportar CSV</button>
+            <button class="chip" id="ordTemplate">Descargar plantilla</button>
+            <input type="file" id="ordImportInput" accept=".csv" class="hidden">
+          </div>
+        </div>
+        <section class="card" style="margin-top:6px">
+          <div class="card-body" style="overflow:auto; max-height:520px">
+            <table class="table" id="ordTable" aria-label="Listado de órdenes" style="border:0">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Categoría</th>
+                  <th>Código/Nombre</th>
+                  <th class="right">Monto</th>
+                  <th>Moneda</th>
+                  <th>Denominación</th>
+                  <th>Servicio</th>
+                  <th class="right">Peso (kg)</th>
+                  <th>Lat</th>
+                  <th>Lng</th>
+                  <th>Usar</th>
+                  <th>Editar</th>
+                  <th>Borrar</th>
+                </tr>
+              </thead>
+              <tbody id="ordTbody"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <!-- ===== Sucursales ===== -->
+      <section class="content hidden" id="sucSection" aria-label="Sucursales">
+        <div class="row" role="search">
+          <div class="search">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <input id="sucQ" placeholder="Buscar Código o Nombre (Ctrl/⌘+K)" />
+          </div>
+          <span class="chip muted">Mostrando <strong id="sucCount">0</strong></span>
+          <div class="row" style="margin-left:auto">
+            <button class="chip" id="sucNew">Nuevo</button>
+            <button class="chip" id="sucImport">Importar CSV</button>
+            <button class="chip" id="sucExport">Exportar CSV</button>
+            <button class="chip" id="sucLocate">Mi ubicación</button>
+            <input type="file" id="sucImportInput" accept=".csv" class="hidden" />
+          </div>
+        </div>
+        <div class="panels" style="grid-template-columns:minmax(520px,1.1fr) minmax(360px,.9fr)">
+          <section class="card">
+            <div class="card-body" style="overflow:auto; max-height:460px">
+              <table class="table" id="sucTable" role="grid" aria-label="Listado de Sucursales" style="border:0">
+                <thead><tr><th>Código</th><th>Nombre</th><th>Lat</th><th>Lng</th><th>Cochera</th></tr></thead>
+                <tbody id="sucTbody"></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="card">
+            <div class="card-body">
+              <div class="map-skeleton" id="sucMapSkeleton">Cargando mapa…</div>
+              <div id="sucMap" class="hidden"></div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <!-- ===== ATMs ===== -->
+      <section class="content hidden" id="atmsSection" aria-label="ATMs">
+        <div class="row" role="search">
+          <div class="search">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <input id="atmQ" placeholder="Buscar Código o Nombre (Ctrl/⌘+K)" />
+          </div>
+          <span class="chip muted">Mostrando <strong id="atmCount">0</strong></span>
+          <div class="row" style="margin-left:auto">
+            <button class="chip" id="atmNew">Nuevo</button>
+            <button class="chip" id="atmImport">Importar CSV</button>
+            <button class="chip" id="atmExport">Exportar CSV</button>
+            <button class="chip" id="atmLocate">Mi ubicación</button>
+            <input type="file" id="atmImportInput" accept=".csv" class="hidden" />
+          </div>
+        </div>
+        <div class="panels" style="grid-template-columns:minmax(520px,1.1fr) minmax(360px,.9fr)">
+          <section class="card">
+            <div class="card-body" style="overflow:auto; max-height:460px">
+              <table class="table" id="atmTable" role="grid" aria-label="Listado de ATMs" style="border:0">
+                <thead><tr><th>Código</th><th>Nombre</th><th>Lat</th><th>Lng</th></tr></thead>
+                <tbody id="atmTbody"></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="card">
+            <div class="card-body">
+              <div class="map-skeleton" id="atmMapSkeleton">Cargando mapa…</div>
+              <div id="atmMap" class="hidden"></div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <!-- ===== CABECERAS ===== -->
+      <section class="content hidden" id="cabSection" aria-label="Cabeceras">
+        <div class="row" role="search">
+          <div class="search">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <input id="cabQ" placeholder="Buscar en cualquier campo (Ctrl/⌘+/)" />
+          </div>
+          <span class="chip muted">Mostrando <strong id="cabCount">0</strong></span>
+          <div class="row" style="margin-left:auto">
+            <button class="chip" id="cabNew">Nuevo</button>
+            <button class="chip" id="cabImport">Importar CSV</button>
+            <button class="chip" id="cabExport">Exportar CSV</button>
+            <input type="file" id="cabImportInput" accept=".csv" class="hidden" />
+          </div>
+        </div>
+        <section class="card" style="margin-top:6px">
+          <div class="card-body" style="overflow:auto; max-height:460px">
+            <table class="table" id="cabTable" role="grid" aria-label="Listado de Cabeceras" style="border:0">
+              <thead><tr><th>Código</th><th>Nombre</th><th>Dirección</th><th>Localidad</th><th>Supervisor</th><th>Teléfono</th></tr></thead>
+              <tbody id="cabTbody"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <!-- ===== OTROS BANCOS ===== -->
+      <section class="content hidden" id="otrosSection" aria-label="Otros Bancos">
+        <div class="row">
+          <div class="search">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <input id="otrosQ" placeholder="Buscar Bancos/Terceros" />
+          </div>
+          <span class="chip muted">Mostrando <strong id="otrosCount">0</strong></span>
+          <div class="row" style="margin-left:auto">
+            <button class="chip" id="otrosNew">Nuevo</button>
+            <button class="chip" id="otrosImport">Importar CSV</button>
+            <button class="chip" id="otrosExport">Exportar CSV</button>
+            <input type="file" id="otrosImportInput" accept=".csv" class="hidden" />
+          </div>
+        </div>
+        <section class="card" style="margin-top:6px">
+          <div class="card-body" style="overflow:auto; max-height:520px">
+            <table class="table" id="otrosTable" aria-label="Otros Bancos/Terceros">
+              <thead><tr><th>Código</th><th>Nombre</th><th>Lat</th><th>Lng</th><th>Dirección</th></tr></thead>
+              <tbody id="otrosTbody"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <!-- ===== CHOFERES ===== -->
+      <section class="content hidden" id="choferesSection" aria-label="Choferes">
+        <div class="row">
+          <div class="search">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <input id="choQ" placeholder="Buscar chofer" />
+          </div>
+          <span class="chip muted">Mostrando <strong id="choCount">0</strong></span>
+          <div class="row" style="margin-left:auto">
+            <button class="chip" id="choNew">Nuevo</button>
+            <button class="chip" id="choImport">Importar CSV</button>
+            <button class="chip" id="choExport">Exportar CSV</button>
+            <input type="file" id="choImportInput" accept=".csv" class="hidden" />
+          </div>
+        </div>
+        <section class="card" style="margin-top:6px">
+          <div class="card-body" style="overflow:auto; max-height:520px">
+            <table class="table" id="choTable" aria-label="Choferes">
+              <thead><tr><th>Legajo</th><th>Nombre</th><th>Licencia</th><th>Vencimiento</th><th>Teléfono</th></tr></thead>
+              <tbody id="choTbody"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <!-- ===== CAMIONES ===== -->
+      <section class="content hidden" id="camionesSection" aria-label="Camiones">
+        <div class="row">
+          <div class="search">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <input id="camQ" placeholder="Buscar camión" />
+          </div>
+          <span class="chip muted">Mostrando <strong id="camCount">0</strong></span>
+          <div class="row" style="margin-left:auto">
+            <button class="chip" id="camNew">Nuevo</button>
+            <button class="chip" id="camImport">Importar CSV</button>
+            <button class="chip" id="camExport">Exportar CSV</button>
+            <input type="file" id="camImportInput" accept=".csv" class="hidden" />
+          </div>
+        </div>
+        <section class="card" style="margin-top:6px">
+          <div class="card-body" style="overflow:auto; max-height:520px">
+            <table class="table" id="camTable" aria-label="Camiones">
+              <thead><tr><th>Patente/ID</th><th>Modelo</th><th>Capacidad $</th><th>Capacidad (kg)</th><th>Vel máx (km/h)</th></tr></thead>
+              <tbody id="camTbody"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <!-- ===== COSTOS (placeholder sintético) ===== -->
+      <!-- ===== Sección COSTOS ===== -->
+      <section class="content hidden" id="costosSection" aria-label="Contenido de Costos">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <div style="font-weight:800;font-size:16px">Parámetros de Costos</div>
+          <div class="save-indicator" id="costSaveIndicator" aria-live="polite">
+            <span class="dot" aria-hidden="true"></span>
+            <span class="text">Guardado</span>
+          </div>
+        </div>
+
+        <div class="ctabs" id="costTabs" role="tablist" aria-label="Secciones de costos">
+          <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="c-tab-atms" id="c-tabbtn-atms">ATMs</button>
+          <button class="tab-btn" role="tab" aria-selected="false" aria-controls="c-tab-suc" id="c-tabbtn-suc">Sucursales</button>
+          <div class="active-bar" id="c-activeBar" aria-hidden="true"></div>
+        </div>
+
+        <!-- Tab: ATMs -->
+        <section id="c-tab-atms" data-c-tab class="active" role="tabpanel" aria-labelledby="c-tabbtn-atms">
+          <div class="c-grid">
+            <!-- Columna izquierda -->
+            <div class="panel">
+              <h3>Medios Propios</h3>
+              <div class="c-row">
+                <label>Costo por parada</label>
+                <div class="c-input"><input inputmode="decimal" data-currency value="750,00" aria-label="Costo por parada - Medios Propios"><span class="ok">✓</span></div>
+              </div>
+              <div class="c-row">
+                <label>Costo por milla CABA</label>
+                <div class="c-input"><input inputmode="decimal" data-currency value="50,00" aria-label="Costo por milla CABA - Medios Propios"><span class="ok">✓</span></div>
+              </div>
+              <div class="c-row">
+                <label>Costo por milla AMBA</label>
+                <div class="c-input"><input inputmode="decimal" data-currency value="55,00" aria-label="Costo por milla AMBA - Medios Propios"><span class="ok">✓</span></div>
+              </div>
+            </div>
+
+            <!-- Columna derecha -->
+            <div class="panel">
+              <h3>ETV</h3>
+              <div class="c-row">
+                <label>Costo por parada</label>
+                <div class="c-input"><input inputmode="decimal" data-currency value="1500,00" aria-label="Costo por parada - ETV"><span class="ok">✓</span></div>
+              </div>
+              <div class="c-row">
+                <label>Costo por milla CABA</label>
+                <div class="c-input"><input inputmode="decimal" data-currency value="65,00" aria-label="Costo por milla CABA - ETV"><span class="ok">✓</span></div>
+              </div>
+              <div class="c-row">
+                <label>Costo por milla AMBA</label>
+                <div class="c-input"><input inputmode="decimal" data-currency value="72,00" aria-label="Costo por milla AMBA - ETV"><span class="ok">✓</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cabeceras -->
+          <section class="card" style="grid-column:1/-1; margin-top:10px">
+            <div class="card-header" style="padding:14px 16px;border-bottom:1px solid var(--line-clr);display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg, rgba(255,255,255,.02), transparent)">
+              <div class="card-title" style="font-weight:800">Cabeceras</div>
+              <div class="muted-text" style="color:var(--muted-text)">Desde/Hasta · ATMs · Sucursales</div>
+            </div>
+            <div class="card-body">
+              <div class="ctable" id="c-table" role="table" aria-label="Tabla Cabeceras">
+                <div class="c-row header" role="row">
+                  <div role="columnheader">Desde/Hasta</div>
+                  <div role="columnheader">ATMs</div>
+                  <div role="columnheader">Sucursales</div>
+                </div>
+                <div class="c-row" role="row">
+                  <div class="name" role="cell">1550 - Mar del Plata</div>
+                  <div class="c-input" role="cell"><input inputmode="decimal" data-currency value="40,00" aria-label="Mar del Plata ATMs"><span class="ok">✓</span></div>
+                  <div class="c-input" role="cell"><input inputmode="decimal" data-currency value="40,00" aria-label="Mar del Plata Sucursales"><span class="ok">✓</span></div>
+                </div>
+                <div class="c-row" role="row">
+                  <div class="name" role="cell">1551 - La Plata</div>
+                  <div class="c-input" role="cell"><input inputmode="decimal" data-currency value="38,00" aria-label="La Plata ATMs"><span class="ok">✓</span></div>
+                  <div class="c-input" role="cell"><input inputmode="decimal" data-currency value="45,00" aria-label="La Plata Sucursales"><span class="ok">✓</span></div>
+                </div>
+                <div class="c-row" role="row">
+                  <div class="name" role="cell">1552 - Bahía Blanca</div>
+                  <div class="c-input" role="cell"><input inputmode="decimal" data-currency value="43,00" aria-label="Bahía Blanca ATMs"><span class="ok">✓</span></div>
+                  <div class="c-input" role="cell"><input inputmode="decimal" data-currency value="41,00" aria-label="Bahía Blanca Sucursales"><span class="ok">✓</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="chip" id="c-btnAddRow" data-tip="Agregar fila">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;margin-right:8px"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                Agregar fila
+              </button>
+              <button class="chip" id="c-btnSave" data-tip="Guardar cambios" style="background: linear-gradient(180deg, rgba(47,187,107,.24), rgba(47,187,107,.08)); border-color:rgba(47,187,107,.32)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;margin-right:8px"><path d="M4 4h16v12H4z" stroke="currentColor" stroke-width="2"/><path d="M8 8h8M8 12h6" stroke="currentColor" stroke-width="2"/></svg>
+                Guardar cambios
+              </button>
+            </div>
+          </section>
+        </section>
+
+        <!-- Tab: Sucursales -->
+        <section id="c-tab-suc" data-c-tab role="tabpanel" aria-labelledby="c-tabbtn-suc">
+          <div class="panel">
+            <h3>Sucursales</h3>
+            <p style="color:var(--muted-text);font-weight:700;margin:6px 2px 0">
+              Esta pestaña está lista para incorporar el formulario equivalente para sucursales.
+              Mantiene estilo, validaciones y microinteracciones.
+            </p>
+          </div>
+        </section>
+      </section>
+
+      <!-- ===== REPORTES (placeholder ligero) ===== -->
+      <!-- ===== Sección REPORTES (armonizado) ===== -->
+      <section class="content hidden" id="reportesSection" aria-label="Contenido de Reportes">
+        <div class="rep-wrap">
+          <div style="font-weight:800;font-size:16px">Reportes</div>
+          <div class="rep-tiles" id="repTiles">
+            <!-- Tiles injected by JS -->
+          </div>
+
+          <section class="rep-drawer" id="repDrawer" aria-hidden="true">
+            <div class="rep-h">
+              <div class="rep-title" id="repTitle">–</div>
+              <div class="row">
+                <button class="chip" id="repReset" data-tip="Limpiar filtros">Limpiar</button>
+                <button class="chip" id="repCollapse" data-tip="Ocultar panel">Ocultar</button>
+              </div>
+            </div>
+            <form class="rep-form" id="repForm" novalidate><!-- dynamic fields --></form>
+            <div class="rep-actions">
+              <div class="row">
+                <button class="chip" id="repExportCSV" data-tip="Exportar CSV">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;margin-right:8px"><path d="M12 3v12m0 0l-4-4m4 4l4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><rect x="4" y="15" width="16" height="6" rx="2" stroke="currentColor" stroke-width="2"/></svg>
+                  Exportar CSV
+                </button>
+                <button class="chip" id="repExportPDF" data-tip="Exportar PDF">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;margin-right:8px"><path d="M7 4h10a2 2 0 012 2v12l-4-3-4 3-4-3-4 3V6a2 2 0 012-2z" stroke="currentColor" stroke-width="2"/></svg>
+                  Exportar PDF
+                </button>
+              </div>
+              <button class="chip" id="repPreview" data-tip="Vista previa" style="background: linear-gradient(180deg, rgba(47,187,107,.24), rgba(47,187,107,.08)); border-color:rgba(47,187,107,.32)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;margin-right:8px"><path d="M4 6h16v12H4z" stroke="currentColor" stroke-width="2"/><path d="M8 8h8M8 12h6" stroke="currentColor" stroke-width="2"/></svg>
+                Visualizar
+              </button>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <!-- MODAL Reporte -->
+      <div class="modal" id="reportModal">
+        <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="reportModalTitle">
+          <div class="sheet-h">
+            <div id="reportModalTitle">Vista previa del reporte</div>
+            <button class="icon-btn small" id="reportCloseModal" aria-label="Cerrar">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+          <div class="sheet-b" id="reportModalBody" style="display:grid; gap:12px">
+            <!-- content injected -->
+          </div>
+          <div class="sheet-f">
+            <button class="chip" id="reportModalCSV">Exportar CSV</button>
+            <button class="chip" id="reportModalPDF">Exportar PDF</button>
+            <button class="chip" id="reportModalClose" style="margin-left:auto">Cerrar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== CONFIGURACIÓN ===== -->
+      <section class="content hidden" id="configSection" aria-label="Configuración">
+        <div class="panel">
+          <h3>Parámetros operativos</h3>
+          <div class="row" style="flex-wrap:wrap">
+            <span class="pill"><label>Monto máx. por camión</label><input id="cfgMaxMonto" type="number" value="200000000" style="all:unset;border:1px solid var(--line-clr);padding:8px 10px;border-radius:10px;width:160px;font-weight:800" /></span>
+            <span class="pill"><label>Tiempo máx. ruta (min)</label><input id="cfgMaxMin" type="number" value="480" style="all:unset;border:1px solid var(--line-clr);padding:8px 10px;border-radius:10px;width:120px;font-weight:800" /></span>
+            <span class="pill"><label>Velocidad base (km/h)</label><input id="cfgVel" type="number" value="40" style="all:unset;border:1px solid var(--line-clr);padding:8px 10px;border-radius:10px;width:100px;font-weight:800" /></span>
+            <span class="pill"><label>Parada Sucursal (min)</label><input id="cfgStopSuc" type="number" value="5" style="all:unset;border:1px solid var(--line-clr);padding:8px 10px;border-radius:10px;width:80px;font-weight:800" /></span>
+            <span class="pill"><label>Parada ATM (min)</label><input id="cfgStopATM" type="number" value="15" style="all:unset;border:1px solid var(--line-clr);padding:8px 10px;border-radius:10px;width:80px;font-weight:800" /></span>
+            <span class="pill"><label>Parada Cabecera (min)</label><input id="cfgStopCab" type="number" value="10" style="all:unset;border:1px solid var(--line-clr);padding:8px 10px;border-radius:10px;width:80px;font-weight:800" /></span>
+            <span class="pill"><label>Parada BCRA/Otros (min)</label><input id="cfgStopExt" type="number" value="20" style="all:unset;border:1px solid var(--line-clr);padding:8px 10px;border-radius:10px;width:80px;font-weight:800" /></span>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Interfaz</h3>
+          <div class="row">
+            <span class="pill"><label>Fuente/escala</label><input id="cfgFont" type="range" min="0.9" max="1.2" step="0.01" value="1" /></span>
+            <span class="pill"><label>Radio UI</label><input id="cfgRadius" type="range" min="10" max="22" step="1" value="14" /></span>
+            <span class="pill"><label>Acento</label><input id="cfgAccent" type="color" value="#43a46d" /></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== ACERCA DE ===== -->
+      <section class="content hidden" id="aboutSection" aria-label="Acerca de">
+        <div class="about">
+          <div class="head"><h2 class="title">Acerca de</h2></div>
+          <p class="lead">Aplicación de optimización logística de rutas y flota de la Tesorería General del Banco de la Provincia de Buenos Aires. Versión 8.</p>
+          <div class="about grid">
+            <div class="card"><div class="body" style="padding:18px">
+              <h4>Créditos</h4>
+              <ul>
+                <li>Idea, diseño y desarrollo: <strong>Gaston Jorge Contreras Deguin</strong></li>
+                <li>Departamento de Presupuesto del Tesoro</li>
+              </ul>
+              <div class="version" style="margin-top:14px">
+                <h4 style="margin:14px 0 10px">Versión</h4>
+                <button class="chip" id="versionChip" data-copy="v8.0.0">v8.0.0</button>
+              </div>
+            </div></div>
+            <div class="card"><div class="body" style="padding:0">
+              <div class="banner"><div class="bapro">Gerencia de Tesorería General</div><div class="tag">Banco Provincia</div></div>
+            </div></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ===== MODAL: Loader (camioncito) ===== -->
+  <div class="modal" id="loaderModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="loaderTitle" aria-describedby="loaderDesc">
+    <div class="sheet" role="document">
+      <div class="sheet-h">
+        <div id="loaderTitle">Optimizando…</div>
+        <button class="icon-btn small" id="loaderClose" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="sheet-b">
+        <div class="scene" id="scene">
+          <div class="background"></div>
+          <div class="foreground"></div>
+          <img src="camioncito.png" alt="Camión de reparto" class="truck" loading="eager">
+          <div class="smoke"></div><div class="dust"></div>
+        </div>
+        <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="bar" id="progressBar"></div></div>
+        <p class="status" id="loaderDesc">Preparando…</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TOAST ===== -->
+  <div class="toast" id="toast">Listo</div>
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>
