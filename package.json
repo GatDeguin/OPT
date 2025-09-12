@@ -7,7 +7,8 @@
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
     "dev": "vite",
     "build": "vite build",
-    "start": "node server.js"
+    "start": "node server.js",
+    "import": "node cli/importOrders.js"
   },
   "keywords": [],
   "author": "",
@@ -19,6 +20,7 @@
     "vite": "^7.1.5"
   },
   "dependencies": {
+    "csv-parser": "^3.2.0",
     "express": "^5.1.0"
   }
 }
