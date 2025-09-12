@@ -8,9 +8,11 @@
     topRutas: []
   };
 
+  const API_BASE_URL = window.API_BASE_URL || 'http://localhost:3000';
+
   async function fetchMetrics(){
     try {
-      const res = await fetch('/metrics');
+      const res = await fetch(`${API_BASE_URL}/metrics`);
       if(!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.json();
     } catch(err) {
