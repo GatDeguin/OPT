@@ -2,6 +2,7 @@ import { initUI, showToast } from './ui/ui.js';
 import { initSucursales } from './services/sucursales.js';
 import { initCabeceras } from './services/cabeceras.js';
 import { calcRouteStats } from './services/route-utils.mjs';
+import { computeFallback, fetchBackendRoutes } from './vrp-fallback/index.js';
 
 let bar, pie, line, lineCtx;
 
@@ -784,48 +785,57 @@ let bar, pie, line, lineCtx;
     }
 
     // ===================== OPTIMIZACIÓN =====================
-    function optimize(){
+    async function optimize(){
       const ctl = Loader.open('Preparando la optimización…');
       setTimeout(()=> ctl.setMessage('Evaluando restricciones…'), 1000);
       const origen = State.cab.find(c=>c.codigo===selOrigen.value);
       if(!origen){ ctl.fail('Seleccioná una cabecera origen'); return; }
 
-      // Construir lista de puntos con prioridad
       let pts = currentRoute.map(p=> ({...p}));
       if(pts.length===0){ ctl.fail('Agregá al menos un punto'); return; }
-      // Aplica prioridades: manual ★, abastecimientos primero, descargas altas antes
       pts.sort((a,b)=>{
         const pa = (a.priority? -1000:0) + (prioAbast.checked && /^abastec/i.test(a.servicio||'') ? -100 : 0) + (prioDescAlta.checked ? -Math.sign(-(a.monto||0)) * Math.abs(a.monto||0)/1e6 : 0);
         const pb = (b.priority? -1000:0) + (prioAbast.checked && /^abastec/i.test(b.servicio||'') ? -100 : 0) + (prioDescAlta.checked ? -Math.sign(-(b.monto||0)) * Math.abs(b.monto||0)/1e6 : 0);
         if(pa!==pb) return pa-pb;
-        // si igual, más cercano al origen
         const da = haversine(parseNumber(origen.lat), parseNumber(origen.lng), a.lat, a.lng);
         const db = haversine(parseNumber(origen.lat), parseNumber(origen.lng), b.lat, b.lng);
         return da-db;
       });
 
-      // Para N<=11 usar Held-Karp (óptimo exacto por distancia), si no, nearest + 2-opt
-      const N = pts.length;
-      let orderIdx = [];
-      if(N <= 11){
-        ctl.setMessage('Ejecutando A* / Held-Karp (N pequeño)…');
-        orderIdx = tspHeldKarp([origen, ...pts], cfg);
-        // orderIdx devuelve orden visitando 1..N (sin el 0 que es origen); convertimos a lista de puntos
-        orderIdx = orderIdx.map(i=> i-1); // a índices 0..N-1 de pts
-      }else{
-        ctl.setMessage('Heurística (vecino + 2-opt)…');
-        orderIdx = heuristicOrder(origen, pts);
-        orderIdx = twoOptImprove(origen, pts, orderIdx);
+      try{
+        ctl.setMessage('Consultando OR-Tools…');
+        const resp = await fetch('/ortools/solve', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ origen, puntos: pts })});
+        if(!resp.ok) throw new Error('bad status');
+        const data = await resp.json();
+        currentRoute = data.route || data.ruta || pts;
+        draw();
+        ctl.finish('Optimización completada');
+        addRecent();
+        return;
+      }catch(err){
+        console.warn('OR-Tools no disponible, usando fallback', err);
       }
 
-      const newRoute = orderIdx.map(i => pts[i]);
-      const stats = calcRouteStats(origen, newRoute, cfg, {haversine, stopTimeFor, parseNumber});
+      ctl.setMessage('Servicio OR-Tools no disponible. Ejecutando heurística…');
+      showToast('Servicio degradado: usando heurística de rutas');
+      let backendPts = pts;
+      try{
+        const routes = await fetchBackendRoutes();
+        if(Array.isArray(routes) && routes[0]?.paradas?.length){
+          backendPts = routes[0].paradas.map(p=> ({...p}));
+        }
+      }catch(e){ console.warn('Fallo al obtener rutas del backend', e); }
+
+      const baseStats = calcRouteStats(origen, backendPts, cfg, {haversine, stopTimeFor, parseNumber});
+      const { ordered, stats } = await computeFallback(origen, backendPts, cfg, {haversine, stopTimeFor, parseNumber});
       if(stats.maxMonto > cfg.maxMonto){ ctl.fail('Ruta supera el monto máximo permitido'); return; }
       if(stats.totalMin > cfg.maxMin){ ctl.fail('Ruta excede el tiempo máximo permitido'); return; }
-      currentRoute = newRoute;
+      currentRoute = ordered;
       draw();
-      ctl.finish('Optimización completada');
+      ctl.finish('Optimización heurística completada');
       addRecent();
+      console.log('Fallback comparativo',{original:{costo: baseStats.maxMonto, km: baseStats.distKm}, heuristica:{costo: stats.maxMonto, km: stats.distKm}});
+      showToast(`Heurística: costo ${stats.maxMonto.toFixed(2)} vs ${baseStats.maxMonto.toFixed(2)}, km ${stats.distKm.toFixed(2)} vs ${baseStats.distKm.toFixed(2)}`);
     }
 
     function tspHeldKarp(nodes, cfg){
