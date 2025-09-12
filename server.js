@@ -213,6 +213,49 @@ app.post('/rutas/:id/recalcular', (req, res) => {
   res.json(route);
 });
 
+function calcMetrics() {
+  let totalKm = 0;
+  let totalCost = 0;
+  let delivered = 0;
+  const stopCount = new Map();
+
+  for (const r of routes) {
+    totalKm += r.km || 0;
+    totalCost += r.costo || 0;
+    stopCount.set(r.id, 0);
+  }
+
+  for (const o of orders) {
+    if (o.estado === 'entregado') delivered++;
+  }
+
+  for (const s of stops) {
+    stopCount.set(s.rutaId, (stopCount.get(s.rutaId) || 0) + 1);
+  }
+
+  const utilizacion = routes.length
+    ? Array.from(stopCount.values()).reduce((a, b) => a + b, 0) / routes.length
+    : 0;
+  const sla = orders.length ? delivered / orders.length : 0;
+  const topRutas = [...routes]
+    .sort((a, b) => (b.km || 0) - (a.km || 0))
+    .slice(0, 5)
+    .map(r => ({ id: r.id, descripcion: r.descripcion, km: r.km, costo: r.costo }));
+
+  return {
+    rutas: routes.length,
+    km: totalKm,
+    costo: totalCost,
+    sla,
+    utilizacion,
+    topRutas
+  };
+}
+
+app.get('/metrics', (req, res) => {
+  res.json(calcMetrics());
+});
+
 // Importar órdenes desde CSV
 app.post('/ordenes/import', (req, res) => {
   const user = req.headers['x-user'] || 'anon';
@@ -263,5 +306,6 @@ app.locals.sucursales = sucursales;
 app.locals.routes = routes;
 app.locals.stops = stops;
 app.locals.recalcRouteMetrics = recalcRouteMetrics;
+app.locals.calcMetrics = calcMetrics;
 
 module.exports = app;
