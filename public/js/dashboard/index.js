@@ -1,6 +1,7 @@
 (async function(){
   async function fetchMetrics(){
-    const res = await fetch('/metrics');
+    const url = location.hostname.includes('github.io') ? 'public/metrics.json' : '/metrics';
+    const res = await fetch(url);
     if(!res.ok) throw new Error('No se pudo obtener métricas');
     return await res.json();
   }
@@ -62,15 +63,24 @@
     download(csv, 'dashboard.xls', 'application/vnd.ms-excel');
   }
 
-  const metrics = await fetchMetrics();
-  document.getElementById('statRoutes')?.textContent = metrics.rutas;
-  document.getElementById('statKm')?.textContent = metrics.km.toFixed(1);
-  document.getElementById('statCost')?.textContent = metrics.costo.toFixed(2);
-  document.getElementById('statSla')?.textContent = (metrics.sla*100).toFixed(1)+'%';
-  document.getElementById('statUtil')?.textContent = metrics.utilizacion.toFixed(2);
+  try {
+    const metrics = await fetchMetrics();
+    const statRoutesEl = document.getElementById('statRoutes');
+    if (statRoutesEl) statRoutesEl.textContent = metrics.rutas;
+    const statKmEl = document.getElementById('statKm');
+    if (statKmEl) statKmEl.textContent = metrics.km.toFixed(1);
+    const statCostEl = document.getElementById('statCost');
+    if (statCostEl) statCostEl.textContent = metrics.costo.toFixed(2);
+    const statSlaEl = document.getElementById('statSla');
+    if (statSlaEl) statSlaEl.textContent = (metrics.sla * 100).toFixed(1) + '%';
+    const statUtilEl = document.getElementById('statUtil');
+    if (statUtilEl) statUtilEl.textContent = metrics.utilizacion.toFixed(2);
 
-  renderTopRoutesChart(metrics.topRutas);
+    renderTopRoutesChart(metrics.topRutas);
 
-  document.getElementById('dashExportCSV')?.addEventListener('click', ()=> exportCSV(metrics));
-  document.getElementById('dashExportXLSX')?.addEventListener('click', ()=> exportXLSX(metrics));
+    document.getElementById('dashExportCSV')?.addEventListener('click', ()=> exportCSV(metrics));
+    document.getElementById('dashExportXLSX')?.addEventListener('click', ()=> exportXLSX(metrics));
+  } catch (err) {
+    console.error(err);
+  }
 })();

@@ -2774,3 +2774,4 @@ let bar, pie, line, lineCtx;
     };
   })(window.reportesOnShow);
 })();
+})();
