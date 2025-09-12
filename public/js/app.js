@@ -666,6 +666,14 @@ let bar, pie, line, lineCtx;
     const selOrigen = document.getElementById('selOrigen');
     const prioAbast = document.getElementById('prioAbast');
     const prioDescAlta = document.getElementById('prioDescargaAlta');
+    const btnOptimizar = document.getElementById('btnOptimizar');
+    const optStatus = document.getElementById('optStatus');
+
+    function setOptStatus(msg = '') {
+      if (!optStatus) return;
+      optStatus.textContent = msg;
+      optStatus.classList.toggle('hidden', !msg);
+    }
 
     // render listado de puntos disponibles (suc + atms + otros + cab + órdenes marcadas "usar")
     function buildSourceRows(){
@@ -786,56 +794,69 @@ let bar, pie, line, lineCtx;
 
     // ===================== OPTIMIZACIÓN =====================
     async function optimize(){
+      btnOptimizar?.setAttribute('disabled', 'disabled');
+      setOptStatus('Optimizando…');
       const ctl = Loader.open('Preparando la optimización…');
-      setTimeout(()=> ctl.setMessage('Evaluando restricciones…'), 1000);
-      const origen = State.cab.find(c=>c.codigo===selOrigen.value);
-      if(!origen){ ctl.fail('Seleccioná una cabecera origen'); return; }
-
-      let pts = currentRoute.map(p=> ({...p}));
-      if(pts.length===0){ ctl.fail('Agregá al menos un punto'); return; }
-      pts.sort((a,b)=>{
-        const pa = (a.priority? -1000:0) + (prioAbast.checked && /^abastec/i.test(a.servicio||'') ? -100 : 0) + (prioDescAlta.checked ? -Math.sign(-(a.monto||0)) * Math.abs(a.monto||0)/1e6 : 0);
-        const pb = (b.priority? -1000:0) + (prioAbast.checked && /^abastec/i.test(b.servicio||'') ? -100 : 0) + (prioDescAlta.checked ? -Math.sign(-(b.monto||0)) * Math.abs(b.monto||0)/1e6 : 0);
-        if(pa!==pb) return pa-pb;
-        const da = haversine(parseNumber(origen.lat), parseNumber(origen.lng), a.lat, a.lng);
-        const db = haversine(parseNumber(origen.lat), parseNumber(origen.lng), b.lat, b.lng);
-        return da-db;
-      });
-
       try{
-        ctl.setMessage('Consultando OR-Tools…');
-        const resp = await fetch('/ortools/solve', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ origen, puntos: pts })});
-        if(!resp.ok) throw new Error('bad status');
-        const data = await resp.json();
-        currentRoute = data.route || data.ruta || pts;
-        draw();
-        ctl.finish('Optimización completada');
-        addRecent();
-        return;
-      }catch(err){
-        console.warn('OR-Tools no disponible, usando fallback', err);
-      }
+        setTimeout(()=> ctl.setMessage('Evaluando restricciones…'), 1000);
+        const origen = State.cab.find(c=>c.codigo===selOrigen.value);
+        if(!origen){ ctl.fail('Seleccioná una cabecera origen'); setOptStatus(''); return; }
 
-      ctl.setMessage('Servicio OR-Tools no disponible. Ejecutando heurística…');
-      showToast('Servicio degradado: usando heurística de rutas');
-      let backendPts = pts;
-      try{
-        const routes = await fetchBackendRoutes();
-        if(Array.isArray(routes) && routes[0]?.paradas?.length){
-          backendPts = routes[0].paradas.map(p=> ({...p}));
+        let pts = currentRoute.map(p=> ({...p}));
+        if(pts.length===0){ ctl.fail('Agregá al menos un punto'); setOptStatus(''); return; }
+        pts.sort((a,b)=>{
+          const pa = (a.priority? -1000:0) + (prioAbast.checked && /^abastec/i.test(a.servicio||'') ? -100 : 0) + (prioDescAlta.checked ? -Math.sign(-(a.monto||0)) * Math.abs(a.monto||0)/1e6 : 0);
+          const pb = (b.priority? -1000:0) + (prioAbast.checked && /^abastec/i.test(b.servicio||'') ? -100 : 0) + (prioDescAlta.checked ? -Math.sign(-(b.monto||0)) * Math.abs(b.monto||0)/1e6 : 0);
+          if(pa!==pb) return pa-pb;
+          const da = haversine(parseNumber(origen.lat), parseNumber(origen.lng), a.lat, a.lng);
+          const db = haversine(parseNumber(origen.lat), parseNumber(origen.lng), b.lat, b.lng);
+          return da-db;
+        });
+
+        try{
+          ctl.setMessage('Consultando OR-Tools…');
+          const resp = await fetch('/ortools/solve', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ origen, puntos: pts })});
+          if(!resp.ok) throw new Error('bad status');
+          const data = await resp.json();
+          currentRoute = data.route || data.ruta || pts;
+          draw();
+          ctl.finish('Optimización completada');
+          setOptStatus('Listo');
+          addRecent();
+          return;
+        }catch(err){
+          console.warn('OR-Tools no disponible, usando fallback', err);
         }
-      }catch(e){ console.warn('Fallo al obtener rutas del backend', e); }
 
-      const baseStats = calcRouteStats(origen, backendPts, cfg, {haversine, stopTimeFor, parseNumber});
-      const { ordered, stats } = await computeFallback(origen, backendPts, cfg, {haversine, stopTimeFor, parseNumber});
-      if(stats.maxMonto > cfg.maxMonto){ ctl.fail('Ruta supera el monto máximo permitido'); return; }
-      if(stats.totalMin > cfg.maxMin){ ctl.fail('Ruta excede el tiempo máximo permitido'); return; }
-      currentRoute = ordered;
-      draw();
-      ctl.finish('Optimización heurística completada');
-      addRecent();
-      console.log('Fallback comparativo',{original:{costo: baseStats.maxMonto, km: baseStats.distKm}, heuristica:{costo: stats.maxMonto, km: stats.distKm}});
-      showToast(`Heurística: costo ${stats.maxMonto.toFixed(2)} vs ${baseStats.maxMonto.toFixed(2)}, km ${stats.distKm.toFixed(2)} vs ${baseStats.distKm.toFixed(2)}`);
+        ctl.setMessage('Servicio OR-Tools no disponible. Ejecutando heurística…');
+        showToast('Servicio degradado: usando heurística de rutas');
+        let backendPts = pts;
+        try{
+          const routes = await fetchBackendRoutes();
+          if(Array.isArray(routes) && routes[0]?.paradas?.length){
+            backendPts = routes[0].paradas.map(p=> ({...p}));
+          }
+        }catch(e){ console.warn('Fallo al obtener rutas del backend', e); }
+
+        const baseStats = calcRouteStats(origen, backendPts, cfg, {haversine, stopTimeFor, parseNumber});
+        const { ordered, stats } = await computeFallback(origen, backendPts, cfg, {haversine, stopTimeFor, parseNumber});
+        if(stats.maxMonto > cfg.maxMonto){ ctl.fail('Ruta supera el monto máximo permitido'); setOptStatus(''); return; }
+        if(stats.totalMin > cfg.maxMin){ ctl.fail('Ruta excede el tiempo máximo permitido'); setOptStatus(''); return; }
+        currentRoute = ordered;
+        draw();
+        ctl.finish('Optimización heurística completada');
+        setOptStatus('Listo');
+        addRecent();
+        console.log('Fallback comparativo',{original:{costo: baseStats.maxMonto, km: baseStats.distKm}, heuristica:{costo: stats.maxMonto, km: stats.distKm}});
+        showToast(`Heurística: costo ${stats.maxMonto.toFixed(2)} vs ${baseStats.maxMonto.toFixed(2)}, km ${stats.distKm.toFixed(2)} vs ${baseStats.distKm.toFixed(2)}`);
+      }catch(err){
+        console.error('Error durante la optimización', err);
+        ctl.fail('Ocurrió un error en la optimización');
+        setOptStatus('Error');
+        showToast('Error al optimizar la ruta');
+      }finally{
+        btnOptimizar?.removeAttribute('disabled');
+      }
     }
 
     function tspHeldKarp(nodes, cfg){
@@ -911,7 +932,7 @@ let bar, pie, line, lineCtx;
     }
 
     // ===================== EXPORTAR / TRÁNSITO / HISTORIAL =====================
-    document.getElementById('btnOptimizar')?.addEventListener('click', optimize);
+    btnOptimizar?.addEventListener('click', optimize);
     document.getElementById('btnTransito')?.addEventListener('click', ()=>{
       // Toggle de factor de tránsito (simulado). Para datos reales, configurar API externa.
       cfg.trafficFactor = (cfg.trafficFactor>=1.45? 1.0 : (cfg.trafficFactor+0.25));
