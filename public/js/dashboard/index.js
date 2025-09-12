@@ -63,11 +63,16 @@
   }
 
   const metrics = await fetchMetrics();
-  document.getElementById('statRoutes')?.textContent = metrics.rutas;
-  document.getElementById('statKm')?.textContent = metrics.km.toFixed(1);
-  document.getElementById('statCost')?.textContent = metrics.costo.toFixed(2);
-  document.getElementById('statSla')?.textContent = (metrics.sla*100).toFixed(1)+'%';
-  document.getElementById('statUtil')?.textContent = metrics.utilizacion.toFixed(2);
+  const statRoutesEl = document.getElementById('statRoutes');
+  if (statRoutesEl) statRoutesEl.textContent = metrics.rutas;
+  const statKmEl = document.getElementById('statKm');
+  if (statKmEl) statKmEl.textContent = metrics.km.toFixed(1);
+  const statCostEl = document.getElementById('statCost');
+  if (statCostEl) statCostEl.textContent = metrics.costo.toFixed(2);
+  const statSlaEl = document.getElementById('statSla');
+  if (statSlaEl) statSlaEl.textContent = (metrics.sla * 100).toFixed(1) + '%';
+  const statUtilEl = document.getElementById('statUtil');
+  if (statUtilEl) statUtilEl.textContent = metrics.utilizacion.toFixed(2);
 
   renderTopRoutesChart(metrics.topRutas);
 
