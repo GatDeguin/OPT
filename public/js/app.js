@@ -2758,6 +2758,8 @@ let bar, pie, line, lineCtx;
 
 })();
 
+})();
+
 (function(){
   window.reportesOnShow = (function(prev){
     return function(){
