@@ -144,39 +144,6 @@ let bar, pie, line, lineCtx;
   })();
 
   /* =====================================================================
-     CHARTS DASHBOARD (ligeros)
-  ===================================================================== */
-  (function(){
-    function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
-    const barCtx = document.getElementById('montosChart');
-    if(barCtx){
-      const bar = new Chart(barCtx, {
-        type: 'bar',
-        data: { labels: ['mar. 9','mar. 10','mar. 12','mar. 12','mar. 14'],
-          datasets: [{ label: 'Montos (M)', data: [4.4,3.5,2.6,1.9,1.4], backgroundColor: cssVar('--chart-accent')||'rgba(67,164,109,.85)', borderRadius: 6, borderSkipped: false, maxBarThickness: 46 }]},
-        options: { animation:{duration:700}, plugins:{ legend:{display:false} },
-          scales:{ x:{ grid:{display:false} }, y:{ grid:{color:cssVar('--chart-grid')}, suggestedMax:5 } }
-        }
-      });
-    }
-    const pieCtx = document.getElementById('entregasChart');
-    if(pieCtx){
-      new Chart(pieCtx, { type:'doughnut', data:{ labels:['Sucursales','ATMs'],
-        datasets:[{ data:[68.7,31.3], backgroundColor:[cssVar('--chart-accent-2')||'#3b9562', cssVar('--brand-200')||'#c8ecd7'], borderColor:['#eaf7ef','#f3faf6'], borderWidth:2 }]},
-        options:{ cutout:'62%', rotation:-40, plugins:{ legend:{display:false} } } });
-    }
-    const lineCtx = document.getElementById('fallidasChart');
-    if(lineCtx){
-      const grad = lineCtx.getContext('2d').createLinearGradient(0,0,0,160); grad.addColorStop(0, 'rgba(67,164,109,.18)'); grad.addColorStop(1,'rgba(67,164,109,0)');
-      new Chart(lineCtx, { type:'line',
-        data:{ labels:['abr. 2','abr. 4','abr. 6','abr. 7','abr. 8','abr. 10','abr. 4','abr. 10','abr. 10'],
-               datasets:[{ data:[2,3,7,6,3,5,4,6,3], borderColor: cssVar('--chart-accent-2')||'#3b9562', backgroundColor: grad, tension:.35, fill:true, pointRadius:3, pointBackgroundColor:'#fff', pointBorderWidth:2 }]},
-        options:{ plugins:{ legend:{display:false} }, scales:{ x:{grid:{display:false}}, y:{grid:{color:cssVar('--chart-grid')}, suggestedMax:10} } }
-      });
-    }
-  })();
-
-  /* =====================================================================
      HELPERS CSV + GEO + LEAFLET
   ===================================================================== */
   function parseNumber(x){
