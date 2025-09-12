@@ -1045,7 +1045,7 @@ let bar, pie, line, lineCtx;
     // ===== Sidebar ripple + active + routing =====
     const nav = document.getElementById('nav');
     const sections = {
-dashboard: document.getElementById('dashboardSection'),
+      dashboard: document.getElementById('dashboardSection'),
       about: document.getElementById('aboutSection'),
       atms: document.getElementById('atmsSection'),
       sucursales: document.getElementById('sucSection'),
@@ -1055,6 +1055,8 @@ dashboard: document.getElementById('dashboardSection'),
       rutas: document.getElementById('rutasSection'),
       choferes: document.getElementById('choferesSection'),
       camiones: document.getElementById('camionesSection'),
+      otros: document.getElementById('otrosSection'),
+      reportes: document.getElementById('reportesSection'),
       config: document.getElementById('configSection')
     };
     const topTitleText = document.getElementById('topTitleText');
@@ -1082,13 +1084,27 @@ dashboard: document.getElementById('dashboardSection'),
       const target = btn.dataset.target || 'dashboard';
       Object.values(sections).forEach(s=>s.classList.add('hidden'));
       sections[target].classList.remove('hidden');
-      topTitleText.textContent = ({about:'Acerca de', atms:'ATMs', sucursales:'Sucursales', cabeceras:'Cabeceras', costos:'Costos'}[target]) || 'Dashboard';
+      topTitleText.textContent = ({
+        about:'Acerca de',
+        atms:'ATMs',
+        sucursales:'Sucursales',
+        cabeceras:'Cabeceras',
+        costos:'Costos',
+        ordenes:'Órdenes',
+        rutas:'Rutas',
+        choferes:'Choferes',
+        camiones:'Camiones',
+        otros:'Otros Bancos',
+        reportes:'Reportes',
+        config:'Configuración'
+      }[target]) || 'Dashboard';
 
       // focus mejoras
       if(target==='atms'){ document.getElementById('atmQ')?.focus(); }
       if(target==='sucursales'){ document.getElementById('sucQ')?.focus(); }
       if(target==='cabeceras'){ document.getElementById('cabQ')?.focus(); }
       if(target==='costos'){ if(window.costosOnShow) setTimeout(window.costosOnShow, 50); }
+      if(target==='reportes'){ if(window.reportesOnShow) setTimeout(window.reportesOnShow, 50); }
     });
 
     // ===== Count-up microinteraction =====
@@ -2590,11 +2606,13 @@ dashboard: document.getElementById('dashboardSection'),
     });
     document.getElementById('reportModalPDF')?.addEventListener('click', ()=> doPrint() );
 
-    // Keyboard: 1..9 selects report
+    // Keyboard: 1..9 selects report, Esc closes preview, F focuses filters
     document.addEventListener('keydown', (e)=>{
       const visible = !document.getElementById('reportesSection').classList.contains('hidden');
       if(!visible) return;
       if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)) return;
+      const modal = document.getElementById('reportModal');
+      if(e.key === 'Escape' && modal.classList.contains('open')){ e.preventDefault(); closePreview(); return; }
       const n = parseInt(e.key,10);
       if(n>=1 && n<=9){ e.preventDefault(); const r = reports[n-1]; if(r) selectReport(r.id); }
       if(e.key.toLowerCase()==='f'){ e.preventDefault(); const first = formEl.querySelector('input,select,button'); first && first.focus(); }
@@ -2740,29 +2758,6 @@ dashboard: document.getElementById('dashboardSection'),
 
 })();
 
-})();
-
-(function(){
-
-(function(){
-  const nav = document.getElementById('nav');
-  if(!nav) return;
-  nav.addEventListener('click', (e)=>{
-    const btn = e.target.closest('button'); if(!btn) return;
-    const target = btn.dataset.target || '';
-    if(target==='costos' && typeof window.costosOnShow === 'function'){
-      setTimeout(()=> window.costosOnShow(), 60);
-    }
-    if(target==='reportes' && typeof window.reportesOnShow === 'function'){
-      setTimeout(()=> window.reportesOnShow(), 60);
-    }
-  }, {capture:false});
-})();
-
-})();
-
-(function(){
-
 (function(){
   window.reportesOnShow = (function(prev){
     return function(){
@@ -2778,6 +2773,4 @@ dashboard: document.getElementById('dashboardSection'),
       }catch(e){}
     };
   })(window.reportesOnShow);
-})();
-
 })();
