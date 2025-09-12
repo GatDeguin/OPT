@@ -2606,11 +2606,13 @@ let bar, pie, line, lineCtx;
     });
     document.getElementById('reportModalPDF')?.addEventListener('click', ()=> doPrint() );
 
-    // Keyboard: 1..9 selects report
+    // Keyboard: 1..9 selects report, Esc closes preview, F focuses filters
     document.addEventListener('keydown', (e)=>{
       const visible = !document.getElementById('reportesSection').classList.contains('hidden');
       if(!visible) return;
       if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)) return;
+      const modal = document.getElementById('reportModal');
+      if(e.key === 'Escape' && modal.classList.contains('open')){ e.preventDefault(); closePreview(); return; }
       const n = parseInt(e.key,10);
       if(n>=1 && n<=9){ e.preventDefault(); const r = reports[n-1]; if(r) selectReport(r.id); }
       if(e.key.toLowerCase()==='f'){ e.preventDefault(); const first = formEl.querySelector('input,select,button'); first && first.focus(); }
