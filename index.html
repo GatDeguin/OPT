@@ -664,12 +664,40 @@
 
         <!-- Tab: Sucursales -->
         <section id="c-tab-suc" data-c-tab role="tabpanel" aria-labelledby="c-tabbtn-suc">
-          <div class="panel">
-            <h3>Sucursales</h3>
-            <p style="color:var(--muted-text);font-weight:700;margin:6px 2px 0">
-              Esta pestaña está lista para incorporar el formulario equivalente para sucursales.
-              Mantiene estilo, validaciones y microinteracciones.
-            </p>
+          <div class="c-grid">
+            <!-- Columna izquierda -->
+            <div class="panel">
+              <h3>Medios Propios</h3>
+              <div class="c-row">
+                <label>Costo por parada</label>
+                <div class="c-input"><input inputmode="decimal" data-currency value="600,00" aria-label="Costo por parada - Medios Propios"><span class="ok">✓</span></div>
+              </div>
+              <div class="c-row">
+                <label>Costo por milla CABA</label>
+                <div class="c-input"><input inputmode="decimal" data-currency value="48,00" aria-label="Costo por milla CABA - Medios Propios"><span class="ok">✓</span></div>
+              </div>
+              <div class="c-row">
+                <label>Costo por milla AMBA</label>
+                <div class="c-input"><input inputmode="decimal" data-currency value="52,00" aria-label="Costo por milla AMBA - Medios Propios"><span class="ok">✓</span></div>
+              </div>
+            </div>
+
+            <!-- Columna derecha -->
+            <div class="panel">
+              <h3>ETV</h3>
+              <div class="c-row">
+                <label>Costo por parada</label>
+                <div class="c-input"><input inputmode="decimal" data-currency value="760,00" aria-label="Costo por parada - ETV"><span class="ok">✓</span></div>
+              </div>
+              <div class="c-row">
+                <label>Costo por milla CABA</label>
+                <div class="c-input"><input inputmode="decimal" data-currency value="58,00" aria-label="Costo por milla CABA - ETV"><span class="ok">✓</span></div>
+              </div>
+              <div class="c-row">
+                <label>Costo por milla AMBA</label>
+                <div class="c-input"><input inputmode="decimal" data-currency value="62,00" aria-label="Costo por milla AMBA - ETV"><span class="ok">✓</span></div>
+              </div>
+            </div>
           </div>
         </section>
       </section>
