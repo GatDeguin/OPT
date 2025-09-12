@@ -1,8 +1,22 @@
 (async function(){
+  const emptyMetrics = {
+    rutas: 0,
+    km: 0,
+    costo: 0,
+    sla: 0,
+    utilizacion: 0,
+    topRutas: []
+  };
+
   async function fetchMetrics(){
-    const res = await fetch('/metrics');
-    if(!res.ok) throw new Error('No se pudo obtener métricas');
-    return await res.json();
+    try {
+      const res = await fetch('/metrics');
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch(err) {
+      console.error('No se pudo obtener métricas', err);
+      return { ...emptyMetrics };
+    }
   }
 
   function renderTopRoutesChart(top){
