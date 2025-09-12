@@ -1,12 +1,14 @@
 const express = require('express');
 const path = require('path');
 const csv = require('csv-parser');
+const reportsRouter = require('./server/reports');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use('/public', express.static(path.join(__dirname, 'public')));
+app.use('/reports', reportsRouter);
 
 // Data stores
 const sucursales = [
