@@ -1,0 +1,76 @@
+(async function(){
+  async function fetchMetrics(){
+    const res = await fetch('/metrics');
+    if(!res.ok) throw new Error('No se pudo obtener métricas');
+    return await res.json();
+  }
+
+  function renderTopRoutesChart(top){
+    const ctx = document.getElementById('topRoutesChart');
+    if(!ctx) return;
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: top.map(r => r.descripcion || `Ruta ${r.id}`),
+        datasets: [{
+          label: 'Km',
+          data: top.map(r => r.km),
+          backgroundColor: '#43a46d'
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+  }
+
+  function download(data, name, type){
+    const blob = new Blob([data], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function exportCSV(metrics){
+    const rows = [
+      ['km','costo','sla','utilizacion'],
+      [metrics.km, metrics.costo, metrics.sla, metrics.utilizacion],
+      [],
+      ['ruta','km','costo']
+    ];
+    metrics.topRutas.forEach(r => rows.push([r.descripcion || `Ruta ${r.id}`, r.km, r.costo]));
+    const csv = rows.map(r => r.join(',')).join('\n');
+    download(csv, 'dashboard.csv', 'text/csv');
+  }
+
+  function exportXLSX(metrics){
+    const rows = [
+      ['km','costo','sla','utilizacion'],
+      [metrics.km, metrics.costo, metrics.sla, metrics.utilizacion],
+      [],
+      ['ruta','km','costo']
+    ];
+    metrics.topRutas.forEach(r => rows.push([r.descripcion || `Ruta ${r.id}`, r.km, r.costo]));
+    const csv = rows.map(r => r.join(',')).join('\n');
+    download(csv, 'dashboard.xls', 'application/vnd.ms-excel');
+  }
+
+  const metrics = await fetchMetrics();
+  document.getElementById('statRoutes')?.textContent = metrics.rutas;
+  document.getElementById('statKm')?.textContent = metrics.km.toFixed(1);
+  document.getElementById('statCost')?.textContent = metrics.costo.toFixed(2);
+  document.getElementById('statSla')?.textContent = (metrics.sla*100).toFixed(1)+'%';
+  document.getElementById('statUtil')?.textContent = metrics.utilizacion.toFixed(2);
+
+  renderTopRoutesChart(metrics.topRutas);
+
+  document.getElementById('dashExportCSV')?.addEventListener('click', ()=> exportCSV(metrics));
+  document.getElementById('dashExportXLSX')?.addEventListener('click', ()=> exportXLSX(metrics));
+})();
