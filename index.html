@@ -1857,7 +1857,8 @@
       for(const p of pts){
         if(last){ distKm += haversine(last.lat,last.lng,p.lat,p.lng); }
         min += stopTimeFor(p.tipo);
-        carga += (p.monto||0 < 0 ? 0 : (p.monto||0)); // solo sumo abastecimientos como descarga del camión? ajustable
+        const monto = Number(p.monto) || 0;
+        carga += monto < 0 ? 0 : monto; // solo sumo abastecimientos como descarga del camión? ajustable
         maxMonto = Math.max(maxMonto, carga);
         last = p;
       }
