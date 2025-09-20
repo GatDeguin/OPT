@@ -1645,7 +1645,12 @@
       [...tbody.querySelectorAll('input[data-act="usar"]')].forEach(inp=>{
         inp.addEventListener('change', (ev)=>{
           const id = ev.target.closest('tr').dataset.id;
-          const o = State.ord.find(x=>x.id===id); if(o){ o.usar = !!ev.target.checked; save(DB.ord, State.ord); }
+          const o = State.ord.find(x=>x.id===id);
+          if(o){
+            o.usar = !!ev.target.checked;
+            save(DB.ord, State.ord);
+            Route?.refreshSources?.();
+          }
         });
       });
       [...tbody.querySelectorAll('button[data-act="edit"]')].forEach(btn=>{
@@ -2012,6 +2017,9 @@
         addPointToRoute(src, b.closest('tr').querySelector('input[data-act="prio"]')?.checked);
       }));
       renderIgnoredPoints();
+    }
+    function refreshSources(){
+      renderPts();
     }
     ptsQ?.addEventListener('input', renderPts);
     document.getElementById('addFromOrdenes')?.addEventListener('click', ()=>{
@@ -2536,6 +2544,7 @@
 
     // Init
     renderPts(); draw();
+    return { renderPts, refreshSources };
   })();
 
   /* =====================================================================
