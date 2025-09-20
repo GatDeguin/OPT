@@ -1750,18 +1750,34 @@
     const scene = document.getElementById('scene');
     const bar = document.getElementById('progressBar');
     const status = document.getElementById('loaderDesc');
+    let failTimer = null;
     document.getElementById('loaderClose').addEventListener('click', hide);
     function open(msg){
       modal.classList.add('open'); modal.setAttribute('aria-hidden','false');
       bar.style.inlineSize='0%'; status.textContent = msg || 'Optimizando…';
-      scene.classList.add('is-running'); auto();
+      scene.classList.add('is-running');
+      if(failTimer){ clearTimeout(failTimer); failTimer = null; }
+      auto();
       return { setMessage, setProgress, finish, fail, close: hide };
     }
     function setMessage(t){ status.textContent = t; }
     function setProgress(p){ const v = clamp(p,0,100); bar.style.inlineSize=v+'%'; bar.parentElement.setAttribute('aria-valuenow', v); }
     function finish(t){ setProgress(100); setMessage(t||'Listo ✅'); setTimeout(hide, 500); }
-    function fail(t){ setMessage(t||'Ocurrió un error'); }
-    function hide(){ modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); scene.classList.remove('is-running'); }
+    function fail(t){
+      setMessage(t||'Ocurrió un error');
+      stopAnimation();
+      if(failTimer){ clearTimeout(failTimer); }
+      failTimer = setTimeout(()=>{ hide(); }, 1400);
+    }
+    function hide(){
+      stopAnimation();
+      if(failTimer){ clearTimeout(failTimer); failTimer = null; }
+      modal.classList.remove('open'); modal.setAttribute('aria-hidden','true');
+    }
+    function stopAnimation(){
+      if(Loader._int){ clearInterval(Loader._int); Loader._int = null; }
+      scene.classList.remove('is-running');
+    }
     function auto(){ let v=0; Loader._int && clearInterval(Loader._int); Loader._int=setInterval(()=>{ v = Math.min(v + (Math.random()*6+2), 95); setProgress(v); if(v>=95) clearInterval(Loader._int); }, 400); }
     return { open };
   })();
