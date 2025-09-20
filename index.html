@@ -921,6 +921,12 @@
   ===================================================================== */
   const fmtES = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 });
   const fmtMoney = (n) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits:0 }).format(n||0);
+  const fmtMinutes = (min) => {
+    const total = Math.max(0, Math.round(min||0));
+    const hours = Math.floor(total/60);
+    const minutes = total % 60;
+    return `${hours}:${String(minutes).padStart(2,'0')} h`;
+  };
   const htmlEl = document.documentElement;
 
   // THEME
@@ -1908,6 +1914,7 @@
       let maxMonto = 0;
       let totalTiempo = 0;
       const sumMontoEl = document.getElementById('sumMonto');
+      const sumTiempoEl = document.getElementById('sumTiempo');
       const summaryEl = document.getElementById('routeSummary');
       currentRoute.forEach(route=>{
         let carga = 0;
@@ -1934,18 +1941,30 @@
       if(sumMontoEl){
         sumMontoEl.textContent = fmtMoney(maxMonto);
       }
-      document.getElementById('sumTiempo').textContent = `${Math.floor(totalMin/60)}:${String(totalMin%60).padStart(2,'0')} h`;
+      if(sumTiempoEl){
+        sumTiempoEl.textContent = fmtMinutes(totalMin);
+      }
       const maxPermitido = Number(cfg.maxMonto);
       const tieneLimite = isFinite(maxPermitido) && maxPermitido > 0;
       const excedido = tieneLimite && maxMonto > maxPermitido + 1e-6;
+      const maxMinPermitido = Number(cfg.maxMin);
+      const tieneLimiteTiempo = isFinite(maxMinPermitido) && maxMinPermitido > 0;
+      const excedeTiempo = tieneLimiteTiempo && totalMin > maxMinPermitido + 1e-6;
       if(summaryEl){
-        summaryEl.classList.toggle('alert', excedido);
+        summaryEl.classList.toggle('alert', excedido || excedeTiempo);
       }
       if(sumMontoEl){
         if(excedido){
           sumMontoEl.setAttribute('title', `Supera el máximo permitido (${fmtMoney(maxPermitido)})`);
         }else{
           sumMontoEl.removeAttribute('title');
+        }
+      }
+      if(sumTiempoEl){
+        if(excedeTiempo){
+          sumTiempoEl.setAttribute('title', `Supera el tiempo máximo permitido (${fmtMinutes(maxMinPermitido)})`);
+        }else{
+          sumTiempoEl.removeAttribute('title');
         }
       }
     }
@@ -2012,6 +2031,34 @@
         if(violacion >= 0){
           undoStack.pop();
           ctl.fail(`La ruta del camión ${violacion+1} supera el máximo permitido (${fmtMoney(maxPermitido)}). Ajustá la ruta o aumentá el límite.`);
+          return;
+        }
+      }
+
+      const maxMinPermitido = Number(cfg.maxMin);
+      if(isFinite(maxMinPermitido) && maxMinPermitido > 0){
+        const origenLat = parseNumber(origen.lat);
+        const origenLng = parseNumber(origen.lng);
+        let totalMin = 0;
+        optimizadas.forEach(route => {
+          let minRuta = 0;
+          let distKmRuta = 0;
+          let last = { lat: origenLat, lng: origenLng };
+          route.forEach(p => {
+            if(last){ distKmRuta += haversine(last.lat, last.lng, p.lat, p.lng); }
+            minRuta += stopTimeFor(p.tipo);
+            last = p;
+          });
+          if(route.length && last){
+            distKmRuta += haversine(last.lat, last.lng, origenLat, origenLng);
+          }
+          const tiempoTraslado = distKmRuta / (cfg.vel||40) * 60 * (cfg.trafficFactor||1);
+          totalMin += minRuta + tiempoTraslado;
+        });
+        const totalMinRedondeado = Math.round(totalMin);
+        if(totalMinRedondeado > maxMinPermitido + 1e-6){
+          undoStack.pop();
+          ctl.fail(`El tiempo estimado (${fmtMinutes(totalMinRedondeado)}) supera el máximo permitido (${fmtMinutes(maxMinPermitido)}). Considerá dividir la ruta entre más camiones o reducir paradas.`);
           return;
         }
       }
