@@ -741,7 +741,7 @@
         <section class="card" style="margin-top:6px">
           <div class="card-body" style="overflow:auto; max-height:460px">
             <table class="table" id="cabTable" role="grid" aria-label="Listado de Cabeceras" style="border:0">
-              <thead><tr><th>Código</th><th>Nombre</th><th>Dirección</th><th>Localidad</th><th>Supervisor</th><th>Teléfono</th></tr></thead>
+              <thead><tr><th>Código</th><th>Nombre</th><th>Dirección</th><th>Localidad</th><th>Lat</th><th>Lng</th><th>Supervisor</th><th>Teléfono</th></tr></thead>
               <tbody id="cabTbody"></tbody>
             </table>
           </div>
@@ -1107,7 +1107,11 @@
   }
   function clamp(i, min, max){ return Math.max(min, Math.min(max, i)); }
   function uuid(){ return Math.random().toString(36).slice(2)+Date.now().toString(36); }
-  function fmtCoord(n){ return Number(n).toFixed(4); }
+  function fmtCoord(n){
+    if(n === null || n === undefined || n === '') return '—';
+    const num = typeof n === 'number' ? n : parseNumber(n);
+    return Number.isFinite(num) ? num.toFixed(4) : '—';
+  }
 
   /* =====================================================================
      BASES DE DATOS (localStorage) y Seeds
@@ -1138,8 +1142,8 @@
     {codigo:"10003", nombre:"Mar del Plata",         lat:-38.002, lng:-57.556, cochera:false}
   ];
   const seedCab = [
-    {codigo:"0106", nombre:"Quilmes", direccion:"Av. Calchaquí", localidad:"Quilmes", supervisor:"M. Ruiz", telefono:"11-23456"},
-    {codigo:"0101", nombre:"La Plata", direccion:"Av. 7 925", localidad:"La Plata", supervisor:"J. Pérez", telefono:"11-12348"}
+    {codigo:"0106", nombre:"Quilmes", direccion:"Av. Calchaquí", localidad:"Quilmes", supervisor:"M. Ruiz", telefono:"11-23456", lat:-34.7206, lng:-58.2546},
+    {codigo:"0101", nombre:"La Plata", direccion:"Av. 7 925", localidad:"La Plata", supervisor:"J. Pérez", telefono:"11-12348", lat:-34.9214, lng:-57.9545}
   ];
   const seedOtros = [
     {codigo:"BCRA01", nombre:"BCRA", lat:-34.6037, lng:-58.3816, direccion:"Reconquista 266"},
@@ -1383,14 +1387,35 @@
     const tbody = document.getElementById('cabTbody');
     const cntEl = document.getElementById('cabCount');
     const qEl = document.getElementById('cabQ');
+    const selOrigen = document.getElementById('selOrigen');
 
     function render(){
       const q = (qEl.value||'').toLowerCase();
       const arr = State.cab.filter(r => !q || Object.values(r).some(v => (''+v).toLowerCase().includes(q)));
       cntEl.textContent = arr.length;
       tbody.innerHTML = arr.map(r => `
-        <tr><td>${r.codigo}</td><td>${r.nombre||''}</td><td>${r.direccion||''}</td><td>${r.localidad||''}</td><td>${r.supervisor||''}</td><td>${r.telefono||''}</td></tr>
+        <tr>
+          <td>${r.codigo}</td>
+          <td>${r.nombre||''}</td>
+          <td>${r.direccion||''}</td>
+          <td>${r.localidad||''}</td>
+          <td class="right">${fmtCoord(r.lat)}</td>
+          <td class="right">${fmtCoord(r.lng)}</td>
+          <td>${r.supervisor||''}</td>
+          <td>${r.telefono||''}</td>
+        </tr>
       `).join('');
+      if(selOrigen){
+        const prev = selOrigen.value;
+        const validCab = State.cab.filter(c => Number.isFinite(parseNumber(c.lat)) && Number.isFinite(parseNumber(c.lng)));
+        selOrigen.innerHTML = '<option value="">—</option>' + validCab.map(c => `<option value="${c.codigo}">${c.codigo} — ${c.nombre}</option>`).join('');
+        if(validCab.some(c => c.codigo === prev)){
+          selOrigen.value = prev;
+        }else if(prev){
+          selOrigen.value = '';
+          selOrigen.dispatchEvent(new Event('change'));
+        }
+      }
     }
     qEl?.addEventListener('input', render);
 
@@ -1405,33 +1430,39 @@
           nombre: headers.findIndex(h=>/nombre/i.test(h)),
           direccion: headers.findIndex(h=>/direccion/i.test(h)),
           localidad: headers.findIndex(h=>/localidad/i.test(h)),
+          lat: headers.findIndex(h=>/(^lat$|latitud)/i.test(h)),
+          lng: headers.findIndex(h=>/(^lng$|^lon$|longitud)/i.test(h)),
           supervisor: headers.findIndex(h=>/supervisor/i.test(h)),
           telefono: headers.findIndex(h=>/telefono/i.test(h))
         };
-        const out = rows.map(cells => ({
-          codigo:(cells[idx.codigo]||'').trim(), nombre:(cells[idx.nombre]||'').trim(), direccion:(cells[idx.direccion]||'').trim(),
-          localidad:(cells[idx.localidad]||'').trim(), supervisor:(cells[idx.supervisor]||'').trim(), telefono:(cells[idx.telefono]||'').trim()
-        })).filter(r=>r.codigo && r.nombre);
+        const out = rows.map(cells => {
+          const lat = idx.lat>=0 ? parseNumber(cells[idx.lat]) : NaN;
+          const lng = idx.lng>=0 ? parseNumber(cells[idx.lng]) : NaN;
+          return {
+            codigo:(cells[idx.codigo]||'').trim(),
+            nombre:(cells[idx.nombre]||'').trim(),
+            direccion:(cells[idx.direccion]||'').trim(),
+            localidad:(cells[idx.localidad]||'').trim(),
+            lat: Number.isFinite(lat) ? lat : null,
+            lng: Number.isFinite(lng) ? lng : null,
+            supervisor:(cells[idx.supervisor]||'').trim(),
+            telefono:(cells[idx.telefono]||'').trim()
+          };
+        }).filter(r=>r.codigo && r.nombre);
         if(out.length){ State.cab = out; save(DB.cab, State.cab); render(); showToast('Cabeceras importadas'); }
       };
       reader.readAsText(f);
       ev.target.value='';
     });
-    document.getElementById('cabExport')?.addEventListener('click', ()=> csvExport(State.cab, ['codigo','nombre','direccion','localidad','supervisor','telefono']));
+    document.getElementById('cabExport')?.addEventListener('click', ()=> csvExport(State.cab, ['codigo','nombre','direccion','localidad','lat','lng','supervisor','telefono']));
 
     document.getElementById('cabNew')?.addEventListener('click', ()=>{
       const cod = String(Math.max(0,...State.cab.map(r=>parseInt(r.codigo)||0))+1).padStart(4,'0');
-      State.cab.push({codigo:cod, nombre:'Nueva', direccion:'—', localidad:'—', supervisor:'—', telefono:'—'});
+      State.cab.push({codigo:cod, nombre:'Nueva', direccion:'—', localidad:'—', lat:null, lng:null, supervisor:'—', telefono:'—'});
       save(DB.cab, State.cab); render();
     });
 
     render();
-
-    // Cargar cabeceras en select de rutas
-    const selOrigen = document.getElementById('selOrigen');
-    if(selOrigen){
-      selOrigen.innerHTML = '<option value="">—</option>' + State.cab.map(c => `<option value="${c.codigo}">${c.codigo} — ${c.nombre}</option>`).join('');
-    }
   })();
 
   // ========= Otros Bancos =========
