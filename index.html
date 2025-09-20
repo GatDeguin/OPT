@@ -1751,6 +1751,7 @@
     const bar = document.getElementById('progressBar');
     const status = document.getElementById('loaderDesc');
     let failTimer = null;
+    let timerId = null;
     document.getElementById('loaderClose').addEventListener('click', hide);
     function open(msg){
       modal.classList.add('open'); modal.setAttribute('aria-hidden','false');
@@ -1765,20 +1766,21 @@
     function finish(t){ setProgress(100); setMessage(t||'Listo ✅'); setTimeout(hide, 500); }
     function fail(t){
       setMessage(t||'Ocurrió un error');
+      if(timerId !== null){ clearInterval(timerId); timerId = null; }
       stopAnimation();
       if(failTimer){ clearTimeout(failTimer); }
       failTimer = setTimeout(()=>{ hide(); }, 1400);
     }
     function hide(){
+      if(timerId !== null){ clearInterval(timerId); timerId = null; }
       stopAnimation();
       if(failTimer){ clearTimeout(failTimer); failTimer = null; }
       modal.classList.remove('open'); modal.setAttribute('aria-hidden','true');
     }
     function stopAnimation(){
-      if(Loader._int){ clearInterval(Loader._int); Loader._int = null; }
       scene.classList.remove('is-running');
     }
-    function auto(){ let v=0; Loader._int && clearInterval(Loader._int); Loader._int=setInterval(()=>{ v = Math.min(v + (Math.random()*6+2), 95); setProgress(v); if(v>=95) clearInterval(Loader._int); }, 400); }
+    function auto(){ let v=0; if(timerId !== null){ clearInterval(timerId); } timerId=setInterval(()=>{ v = Math.min(v + (Math.random()*6+2), 95); setProgress(v); if(v>=95 && timerId !== null){ clearInterval(timerId); timerId = null; } }, 400); }
     return { open };
   })();
 
