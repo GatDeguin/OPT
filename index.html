@@ -193,6 +193,7 @@
     .about ul{margin:0;padding-left:20px;color:var(--ink-600);font-weight:700}
     .about li{margin:8px 0}
     .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:linear-gradient(180deg, rgba(0,0,0,.02), rgba(0,0,0,.04));border:1px solid var(--line-clr);color:var(--text);font-weight:800;letter-spacing:.2px;cursor:pointer;transition:transform .15s ease, box-shadow .25s ease, background .25s ease}
+    button.chip:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
     html[data-theme="dark"] .chip{background:linear-gradient(180deg,#0c1015,#0a0e13)}
     .chip:hover{transform:translateY(-1px)}
     .banner{position:relative;border-radius:var(--ui-radius);overflow:hidden;min-height:110px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border:1px solid var(--line-clr);background:radial-gradient(120% 140% at -10% 50%, var(--banner-from) 0%, var(--banner-mid) 60%, var(--banner-to) 100%);box-shadow:var(--shadow);isolation:isolate}
@@ -1745,6 +1746,9 @@
     const prioAbast = document.getElementById('prioAbast');
     const prioDescAlta = document.getElementById('prioDescargaAlta');
     const nCamionesInput = document.getElementById('nCamiones');
+    const btnOptimizar = document.getElementById('btnOptimizar');
+    const btnExportar = document.getElementById('btnExportar');
+    let missingOriginWarned = false;
 
     function cloneRoutes(routes = currentRoute){
       return routes.map(route => route.map(p => ({...p})));
@@ -1899,6 +1903,8 @@
       });
     }
 
+    selOrigen?.addEventListener('change', draw);
+
     function labelForRoute(idx){
       return `Camión ${idx+1}`;
     }
@@ -1909,19 +1915,48 @@
       const selectedTrucks = parseInt(nCamionesInput?.value, 10) || 1;
       const usedTrucks = currentRoute.filter(route => route.length>0).length;
       document.getElementById('sumCamiones').textContent = Math.max(selectedTrucks, usedTrucks || (totalPoints?1:0));
-      // calcular monto pico y tiempo estimado agregando todas las rutas
-      const origen = State.cab.find(c=>c.codigo===selOrigen.value);
-      let maxMonto = 0;
-      let totalTiempo = 0;
       const sumMontoEl = document.getElementById('sumMonto');
       const sumTiempoEl = document.getElementById('sumTiempo');
       const summaryEl = document.getElementById('routeSummary');
+      const origen = State.cab.find(c=>c.codigo===selOrigen.value);
+      const originLat = parseNumber(origen?.lat);
+      const originLng = parseNumber(origen?.lng);
+      const hasOrigen = origen && Number.isFinite(originLat) && Number.isFinite(originLng);
+
+      if(btnOptimizar){ btnOptimizar.disabled = !hasOrigen; }
+      if(btnExportar){ btnExportar.disabled = !hasOrigen; }
+
+      if(!hasOrigen){
+        if(sumMontoEl){
+          sumMontoEl.textContent = '—';
+          sumMontoEl.removeAttribute('title');
+        }
+        if(sumTiempoEl){
+          sumTiempoEl.textContent = '—';
+          sumTiempoEl.removeAttribute('title');
+        }
+        summaryEl?.classList.remove('alert');
+        if(totalPoints>0){
+          if(!missingOriginWarned){
+            showToast('Seleccioná una cabecera para calcular tiempos y montos');
+            missingOriginWarned = true;
+          }
+        }else{
+          missingOriginWarned = false;
+        }
+        return;
+      }
+
+      missingOriginWarned = false;
+
+      let maxMonto = 0;
+      let totalTiempo = 0;
       currentRoute.forEach(route=>{
         let carga = 0;
         let maxCargaRuta = 0;
         let minRuta = 0;
         let distKmRuta = 0;
-        let last = origen ? {lat: parseNumber(origen.lat), lng: parseNumber(origen.lng)} : null;
+        let last = {lat: originLat, lng: originLng};
         route.forEach(p=>{
           if(last){ distKmRuta += haversine(last.lat,last.lng,p.lat,p.lng); }
           minRuta += stopTimeFor(p.tipo);
@@ -1930,8 +1965,8 @@
           maxCargaRuta = Math.max(maxCargaRuta, carga);
           last = p;
         });
-        if(route.length && last && origen){
-          distKmRuta += haversine(last.lat,last.lng, parseNumber(origen.lat), parseNumber(origen.lng));
+        if(route.length && last){
+          distKmRuta += haversine(last.lat,last.lng, originLat, originLng);
         }
         const tiempoTraslado = distKmRuta / (cfg.vel||40) * 60 * (cfg.trafficFactor||1);
         totalTiempo += minRuta + tiempoTraslado;
