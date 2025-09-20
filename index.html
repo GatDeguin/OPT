@@ -1762,16 +1762,28 @@
 
     // render listado de puntos disponibles (suc + atms + otros + cab + órdenes marcadas "usar")
     function buildSourceRows(){
+      const ensureFinite = rows => rows.filter(r => Number.isFinite(r.lat) && Number.isFinite(r.lng));
       const ords = State.ord.filter(o=>o.usar);
-      const suc = State.suc.map(s=> ({tipo:'Sucursal', codigo:s.codigo, nombre:s.nombre, lat:s.lat, lng:s.lng, monto:0, servicio:'', id:'SUC:'+s.codigo}));
-      const atms = State.atms.map(a=> ({tipo:'ATM', codigo:a.codigo, nombre:a.nombre, lat:a.lat, lng:a.lng, monto:0, servicio:'', id:'ATM:'+a.codigo}));
-      const cab = State.cab.map(c=> ({tipo:'Cabecera', codigo:c.codigo, nombre:c.nombre, lat: parseNumber(c.lat)||null, lng: parseNumber(c.lng)||null, monto:0, servicio:'', id:'CAB:'+c.codigo})).filter(x=> isFinite(x.lat) && isFinite(x.lng));
-      const otros = State.otros.map(o=> ({tipo:'Otros', codigo:o.codigo, nombre:o.nombre, lat:o.lat, lng:o.lng, monto:0, servicio:'', id:'OTR:'+o.codigo}));
-      const ordMapped = ords.map(o=> ({tipo:o.categoria, codigo:o.codigo, nombre:o.nombre, lat:o.lat, lng:o.lng, monto:o.monto, servicio:o.servicio, id:o.id}));
+      const suc = ensureFinite(State.suc.map(s=> ({tipo:'Sucursal', codigo:s.codigo, nombre:s.nombre, lat: parseNumber(s.lat), lng: parseNumber(s.lng), monto:0, servicio:'', id:'SUC:'+s.codigo})));
+      const atms = ensureFinite(State.atms.map(a=> ({tipo:'ATM', codigo:a.codigo, nombre:a.nombre, lat: parseNumber(a.lat), lng: parseNumber(a.lng), monto:0, servicio:'', id:'ATM:'+a.codigo})));
+      const cab = ensureFinite(State.cab.map(c=> ({tipo:'Cabecera', codigo:c.codigo, nombre:c.nombre, lat: parseNumber(c.lat), lng: parseNumber(c.lng), monto:0, servicio:'', id:'CAB:'+c.codigo})));
+      const otros = ensureFinite(State.otros.map(o=> ({tipo:'Otros', codigo:o.codigo, nombre:o.nombre, lat: parseNumber(o.lat), lng: parseNumber(o.lng), monto:0, servicio:'', id:'OTR:'+o.codigo})));
+      const ordMapped = ensureFinite(ords.map(o=> ({tipo:o.categoria, codigo:o.codigo, nombre:o.nombre, lat: parseNumber(o.lat), lng: parseNumber(o.lng), monto:o.monto, servicio:o.servicio, id:o.id})));
       return [...ordMapped, ...suc, ...atms, ...otros]; // cabeceras no se mezclan aquí (van como origen)
     }
 
     function renderPts(){
+      const unusableOrders = State.ord.filter(o => o.usar && (!Number.isFinite(parseNumber(o.lat)) || !Number.isFinite(parseNumber(o.lng))));
+      if(unusableOrders.length){
+        if(renderPts._lastWarnedMissing !== unusableOrders.length){
+          const isSingular = unusableOrders.length === 1;
+          const label = isSingular ? 'orden' : 'órdenes';
+          const verb = isSingular ? 'fue' : 'fueron';
+          const suffix = isSingular ? '' : 's';
+          showToast(`${unusableOrders.length} ${label} marcada${suffix} "usar" sin coordenadas ${verb} omitida${suffix}`);
+        }
+      }
+      renderPts._lastWarnedMissing = unusableOrders.length;
       const arr = buildSourceRows();
       const q = (ptsQ.value||'').toLowerCase();
       const filtered = arr.filter(r=> !q || (r.codigo||'').toLowerCase().includes(q) || (r.nombre||'').toLowerCase().includes(q) || (r.tipo||'').toLowerCase().includes(q));
