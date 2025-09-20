@@ -1,0 +1,4 @@
+id,patente,capacidad_kg,velocidad_kmh,costo_fijo,costo_km,cabecera_base,activo
+T-101,AB123CD,1200,55,25000,120,1800 - Buenos Aires,True
+T-102,EF456GH,1500,60,28000,130,1800 - Buenos Aires,True
+T-104,IJ789KL,1800,60,30000,140,1800 - Buenos Aires,True

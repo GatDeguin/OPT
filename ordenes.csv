@@ -1,0 +1,7 @@
+id,fecha,categoria,tipo_destino,codigo_destino,nombre_destino,monto,moneda,denominacion,tipo_servicio,peso_kg,cabecera_codigo,cabecera_nombre,lat,lng,ventana_desde,ventana_hasta,observaciones
+O-0001,2025-08-23,Sucursal,Sucursal,10001,Bahía Blanca - Centro,1500000,ARS,$100,Reposición,42.5,0106,Quilmes,-38.718,-62.268,08:00,12:00,Prioridad alta
+O-0002,2025-08-23,ATM,ATM,50010,Bahía Blanca,800000,ARS,$1000,Reposición,18.0,0106,Quilmes,-38.715,-62.268,09:00,13:00,
+O-0003,2025-08-23,Cabecera,Cabecera,0105,San Isidro,1200000,ARS,$500,Recolección,30.0,0105,San Isidro,-34.473,-58.527,10:00,16:00,Con recuento
+O-0004,2025-08-23,Otros Bancos,Otro Banco,OB-7721,Banco X - MDP,600000,ARS,$200,Reposición,12.2,0101,La Plata,-38.002,-57.556,08:30,15:00,
+O-0005,2025-08-23,Sucursal,Sucursal,10006,Quilmes,900000,ARS,$100,Recolección,26.4,0106,Quilmes,-34.725,-58.254,11:00,17:00,
+O-0006,2025-08-23,ATM,ATM,50014,Campana,700000,ARS,$1000,Reposición,15.8,0106,Quilmes,-34.132,-59.099,09:30,14:00,

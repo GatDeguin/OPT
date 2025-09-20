@@ -1,0 +1,4 @@
+id,nombre,licencia,seniority,jornada_max_horas,costo_hora,cabecera,activo
+C-201,Juan Perez,C2,Senior,10,5000,0106 - Quilmes,True
+C-202,Lucia Gomez,C2,Semi-Senior,9,4800,0101 - La Plata,True
+C-203,Carlos Ruiz,C2,Junior,8,4500,0105 - San Isidro,True
