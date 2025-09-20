@@ -2005,7 +2005,7 @@
       const origen = State.cab.find(c=>c.codigo===selOrigen.value);
       const rec = {
         id: uuid(), fecha: new Date().toISOString().slice(0,10), nombre,
-        origen: selOrigen.value, puntos: currentRoute, camiones: parseInt(document.getElementById('nCamiones').value)||1,
+        origen: selOrigen.value, puntos: currentRoute.map(p => ({...p})), camiones: parseInt(document.getElementById('nCamiones').value)||1,
         tiempo: document.getElementById('sumTiempo').textContent, montoPico: document.getElementById('sumMonto').textContent,
         aprobado: true
       };
@@ -2030,7 +2030,7 @@
         const id = b.closest('tr').dataset.id;
         const h = State.hist.find(x=>x.id===id); if(!h) return;
         selOrigen.value = h.origen || '';
-        currentRoute = h.puntos || [];
+        currentRoute = (h.puntos || []).map(p => ({...p}));
         document.getElementById('nCamiones').value = h.camiones || 1;
         draw(); showToast('Ruta cargada desde historial');
       }));
