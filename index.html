@@ -1724,7 +1724,7 @@
   ===================================================================== */
   const Route = (function(){
     let routeMap, routeMarkers = [], routeLines = [];
-    let currentRoute = []; // array de puntos {id, tipo, nombre, lat, lng, monto, servicio, priority}
+    let currentRoute = [[]]; // array de rutas (cada una lista de puntos {id, tipo, nombre, lat, lng, monto, servicio, priority})
     let undoStack = [];
 
     const ptsTbody = document.getElementById('ptsTbody');
@@ -1736,6 +1736,17 @@
     const selOrigen = document.getElementById('selOrigen');
     const prioAbast = document.getElementById('prioAbast');
     const prioDescAlta = document.getElementById('prioDescargaAlta');
+    const nCamionesInput = document.getElementById('nCamiones');
+
+    function cloneRoutes(routes = currentRoute){
+      return routes.map(route => route.map(p => ({...p})));
+    }
+    function flattenRoutes(routes = currentRoute){
+      return routes.reduce((acc, route)=> acc.concat(route), []);
+    }
+    function ensureBaseRoute(){
+      if(!currentRoute.length){ currentRoute = [[]]; }
+    }
 
     // render listado de puntos disponibles (suc + atms + otros + cab + órdenes marcadas "usar")
     function buildSourceRows(){
@@ -1777,19 +1788,32 @@
     });
 
     function addPointToRoute(p, priority=false){
-      undoStack.push(currentRoute.slice());
-      currentRoute.push({ ...p, priority: !!priority });
+      ensureBaseRoute();
+      undoStack.push(cloneRoutes());
+      let target = currentRoute.findIndex(route => route.length===0);
+      if(target<0){
+        let bestScore = Infinity;
+        currentRoute.forEach((route, idx)=>{
+          const carga = route.reduce((acc, item)=> acc + Math.max(0, Number(item.monto)||0), 0);
+          const score = route.length*1e6 + carga;
+          if(score < bestScore){ bestScore = score; target = idx; }
+        });
+        if(target<0) target = 0;
+      }
+      currentRoute[target].push({ ...p, priority: !!priority });
       draw();
     }
-    function removeAt(idx){
-      undoStack.push(currentRoute.slice());
-      currentRoute.splice(idx,1);
+    function removeAt(routeIdx, pointIdx){
+      if(routeIdx<0 || routeIdx>=currentRoute.length) return;
+      undoStack.push(cloneRoutes());
+      currentRoute[routeIdx].splice(pointIdx,1);
+      if(flattenRoutes().length===0){ currentRoute = [[]]; }
       draw();
     }
     document.getElementById('btnDeshacer')?.addEventListener('click', ()=>{
-      const prev = undoStack.pop(); if(prev){ currentRoute = prev; draw(); }
+      const prev = undoStack.pop(); if(prev){ currentRoute = cloneRoutes(prev); draw(); }
     });
-    document.getElementById('btnLimpiarRuta')?.addEventListener('click', ()=>{ undoStack.push(currentRoute.slice()); currentRoute = []; draw(); });
+    document.getElementById('btnLimpiarRuta')?.addEventListener('click', ()=>{ undoStack.push(cloneRoutes()); currentRoute = [[]]; draw(); });
 
     function stopTimeFor(tipo){
       if(/^suc/i.test(tipo||'')) return cfg.stopSuc||5;
@@ -1799,11 +1823,33 @@
     }
 
     function draw(){
-      // tabla paradas
-      rutaTbody.innerHTML = currentRoute.map((r,i)=>`
-        <tr><td><span class="order-num">${i+1}</span></td><td>${r.tipo||''}</td><td>${r.nombre||''}</td><td class="right">${r.monto?fmtMoney(r.monto):''}</td><td>${r.servicio||''}${r.priority? ' <span class="priority">★</span>':''}</td><td><button class="chip" data-i="${i}" data-act="rm">Quitar</button></td></tr>
-      `).join('');
-      [...rutaTbody.querySelectorAll('button[data-act="rm"]')].forEach(b=> b.addEventListener('click', ()=> removeAt(parseInt(b.dataset.i))));
+      ensureBaseRoute();
+      const multipleRoutes = currentRoute.length > 1;
+      const rows = [];
+      let globalIdx = 0;
+      currentRoute.forEach((route, rIdx)=>{
+        const label = `Camión ${rIdx+1}`;
+        if(multipleRoutes){
+          rows.push(`<tr class="route-header"><td colspan="6"><strong>${label}</strong>${route.length? '': ' — sin paradas'}</td></tr>`);
+        }
+        if(route.length){
+          route.forEach((r,i)=>{
+            globalIdx++;
+            rows.push(`<tr><td><span class="order-num">${globalIdx}</span></td><td>${r.tipo||''}</td><td>${r.nombre||''}</td><td class="right">${r.monto?fmtMoney(r.monto):''}</td><td>${r.servicio||''}${r.priority? ' <span class="priority">★</span>':''}</td><td><button class="chip" data-route="${rIdx}" data-i="${i}" data-act="rm">Quitar</button></td></tr>`);
+          });
+        }else if(multipleRoutes){
+          rows.push(`<tr><td colspan="6" style="color:var(--muted-text);font-style:italic;">Sin paradas asignadas</td></tr>`);
+        }
+      });
+      if(!rows.length){
+        rows.push(`<tr><td colspan="6" style="color:var(--muted-text);font-style:italic;">Sin paradas</td></tr>`);
+      }
+      rutaTbody.innerHTML = rows.join('');
+      [...rutaTbody.querySelectorAll('button[data-act="rm"]')].forEach(b=>{
+        const routeIdx = parseInt(b.dataset.route, 10);
+        const pointIdx = parseInt(b.dataset.i, 10);
+        removeAt(routeIdx, pointIdx);
+      });
 
       // mapa
       waitForLeaflet().then(()=>{
@@ -1817,54 +1863,70 @@
         routeLines.forEach(l=> l.remove()); routeLines=[];
         const origenCodigo = selOrigen.value;
         const origen = State.cab.find(c=>c.codigo===origenCodigo);
-        const pts = currentRoute.slice();
-        // Dibujar markers (numerados)
         const bounds = [];
+        const palette = ['var(--route-a)','var(--route-b)','var(--route-c)','#f39c12','#8e44ad','#16a085','#34495e'];
         if(origen && isFinite(parseNumber(origen.lat)) && isFinite(parseNumber(origen.lng))){
           const m = L.marker([parseNumber(origen.lat), parseNumber(origen.lng)], { title:'Origen: '+origen.nombre });
           m.addTo(routeMap); routeMarkers.push(m); bounds.push(m.getLatLng());
         }
-        pts.forEach((p,i)=>{
-          const num = i+1;
-          const divIcon = L.divIcon({className:'', html:`<div style="display:grid;place-items:center;width:30px;height:30px;border-radius:10px;background:#fff;border:2px solid rgba(47,187,107,.8); font:800 12px/1 Inter,sans-serif">${num}</div>`, iconSize:[30,30], iconAnchor:[15,15]});
-          const m = L.marker([p.lat, p.lng], {icon:divIcon, title: `${num}. ${p.tipo} — ${p.nombre}`});
-          m.addTo(routeMap); routeMarkers.push(m); bounds.push(m.getLatLng());
-        });
-        if(bounds.length) routeMap.fitBounds(L.latLngBounds(bounds), {padding:[20,20]});
-
-        // Dibujar líneas si ya optimizada/ordenada (tramos alternando colores)
-        if(origen && pts.length){
-          const coords = [[parseNumber(origen.lat), parseNumber(origen.lng)]].concat(pts.map(p=>[p.lat,p.lng])).concat([[parseNumber(origen.lat), parseNumber(origen.lng)]]);
-          for(let i=0;i<coords.length-1;i++){
-            const color = (i%2===0? 'var(--route-a)' : 'var(--route-b)');
-            const l = L.polyline([coords[i], coords[i+1]], { color, weight:4, opacity:.9 });
+        let seq = 0;
+        currentRoute.forEach((route, rIdx)=>{
+          const color = palette[rIdx % palette.length];
+          route.forEach((p)=>{
+            seq++;
+            const divIcon = L.divIcon({className:'', html:`<div style="display:grid;place-items:center;width:30px;height:30px;border-radius:10px;background:#fff;border:2px solid ${color}; font:800 12px/1 Inter,sans-serif;color:var(--ink-800);">${seq}</div>`, iconSize:[30,30], iconAnchor:[15,15]});
+            const m = L.marker([p.lat, p.lng], {icon:divIcon, title: `${labelForRoute(rIdx)} · ${seq}. ${p.tipo} — ${p.nombre}`});
+            m.addTo(routeMap); routeMarkers.push(m); bounds.push(m.getLatLng());
+          });
+          if(origen && route.length){
+            const originLat = parseNumber(origen.lat);
+            const originLng = parseNumber(origen.lng);
+            const coords = [[originLat, originLng]].concat(route.map(p=>[p.lat,p.lng])).concat([[originLat, originLng]]);
+            const l = L.polyline(coords, { color, weight:4, opacity:.9 });
             l.addTo(routeMap); routeLines.push(l);
           }
-        }
+        });
+        if(bounds.length) routeMap.fitBounds(L.latLngBounds(bounds), {padding:[20,20]});
         updateSummary();
       });
     }
 
+    function labelForRoute(idx){
+      return `Camión ${idx+1}`;
+    }
+
     function updateSummary(){
-      document.getElementById('sumPuntos').textContent = currentRoute.length;
-      document.getElementById('sumCamiones').textContent = document.getElementById('nCamiones').value || 1;
-      // calcular monto pico y tiempo estimado
+      const totalPoints = flattenRoutes().length;
+      document.getElementById('sumPuntos').textContent = totalPoints;
+      const selectedTrucks = parseInt(nCamionesInput?.value, 10) || 1;
+      const usedTrucks = currentRoute.filter(route => route.length>0).length;
+      document.getElementById('sumCamiones').textContent = Math.max(selectedTrucks, usedTrucks || (totalPoints?1:0));
+      // calcular monto pico y tiempo estimado agregando todas las rutas
       const origen = State.cab.find(c=>c.codigo===selOrigen.value);
-      const pts = currentRoute;
-      let maxMonto = 0, carga = 0;
-      let distKm = 0, min = 0;
-      let last = origen ? {lat: parseNumber(origen.lat), lng: parseNumber(origen.lng)} : null;
-      for(const p of pts){
-        if(last){ distKm += haversine(last.lat,last.lng,p.lat,p.lng); }
-        min += stopTimeFor(p.tipo);
-        const monto = Number(p.monto) || 0;
-        carga += monto < 0 ? 0 : monto; // solo sumo abastecimientos como descarga del camión? ajustable
-        maxMonto = Math.max(maxMonto, carga);
-        last = p;
-      }
-      if(last && origen){ distKm += haversine(last.lat,last.lng, parseNumber(origen.lat), parseNumber(origen.lng)); }
-      const tiempoTraslado = distKm / (cfg.vel||40) * 60 * (cfg.trafficFactor||1);
-      const totalMin = Math.round(min + tiempoTraslado);
+      let maxMonto = 0;
+      let totalTiempo = 0;
+      currentRoute.forEach(route=>{
+        let carga = 0;
+        let maxCargaRuta = 0;
+        let minRuta = 0;
+        let distKmRuta = 0;
+        let last = origen ? {lat: parseNumber(origen.lat), lng: parseNumber(origen.lng)} : null;
+        route.forEach(p=>{
+          if(last){ distKmRuta += haversine(last.lat,last.lng,p.lat,p.lng); }
+          minRuta += stopTimeFor(p.tipo);
+          const monto = Number(p.monto) || 0;
+          carga += monto < 0 ? 0 : monto;
+          maxCargaRuta = Math.max(maxCargaRuta, carga);
+          last = p;
+        });
+        if(route.length && last && origen){
+          distKmRuta += haversine(last.lat,last.lng, parseNumber(origen.lat), parseNumber(origen.lng));
+        }
+        const tiempoTraslado = distKmRuta / (cfg.vel||40) * 60 * (cfg.trafficFactor||1);
+        totalTiempo += minRuta + tiempoTraslado;
+        maxMonto = Math.max(maxMonto, maxCargaRuta);
+      });
+      const totalMin = Math.round(totalTiempo);
       document.getElementById('sumMonto').textContent = fmtMoney(maxMonto);
       document.getElementById('sumTiempo').textContent = `${Math.floor(totalMin/60)}:${String(totalMin%60).padStart(2,'0')} h`;
     }
@@ -1877,7 +1939,10 @@
       if(!origen){ ctl.fail('Seleccioná una cabecera origen'); return; }
 
       // Construir lista de puntos con prioridad
-      let pts = currentRoute.map(p=> ({...p}));
+      const pts = flattenRoutes().map(p=> ({...p}));
+      if(pts.length===0){ ctl.fail('No hay paradas'); return; }
+      const camiones = parseInt(nCamionesInput?.value, 10) || 1;
+      undoStack.push(cloneRoutes());
       // Aplica prioridades: manual ★, abastecimientos primero, descargas altas antes
       pts.sort((a,b)=>{
         const pa = (a.priority? -1000:0) + (prioAbast.checked && /^abastec/i.test(a.servicio||'') ? -100 : 0) + (prioDescAlta.checked ? -Math.sign(-(a.monto||0)) * Math.abs(a.monto||0)/1e6 : 0);
@@ -1889,24 +1954,47 @@
         return da-db;
       });
 
-      // Para N<=11 usar Held-Karp (óptimo exacto por distancia), si no, nearest + 2-opt
-      const N = pts.length;
-      let orderIdx = [];
-      if(N <= 11){
-        ctl.setMessage('Ejecutando A* / Held-Karp (N pequeño)…');
-        orderIdx = tspHeldKarp([origen, ...pts], cfg);
-        // orderIdx devuelve orden visitando 1..N (sin el 0 que es origen); convertimos a lista de puntos
-        orderIdx = orderIdx.map(i=> i-1); // a índices 0..N-1 de pts
-      }else{
-        ctl.setMessage('Heurística (vecino + 2-opt)…');
-        orderIdx = heuristicOrder(origen, pts);
-        orderIdx = twoOptImprove(origen, pts, orderIdx);
-      }
+      ctl.setMessage(`Distribuyendo en ${camiones} camión${camiones===1?'':'es'}…`);
+      const distribuidas = splitIntoRoutes(pts, camiones);
+      let shownHeld = false, shownHeur = false;
+      const optimizadas = distribuidas.map(routePts=>{
+        if(routePts.length===0) return [];
+        const localPts = routePts.map(p=> ({...p}));
+        const N = localPts.length;
+        let orderIdx = [];
+        if(N <= 11){
+          if(!shownHeld){ ctl.setMessage('Ejecutando A* / Held-Karp (N pequeño)…'); shownHeld=true; }
+          orderIdx = tspHeldKarp([origen, ...localPts], cfg).map(i=> i-1);
+        }else{
+          if(!shownHeur){ ctl.setMessage('Heurística (vecino + 2-opt)…'); shownHeur=true; }
+          orderIdx = heuristicOrder(origen, localPts);
+          orderIdx = twoOptImprove(origen, localPts, orderIdx);
+        }
+        return orderIdx.map(i => localPts[i]);
+      });
 
-      currentRoute = orderIdx.map(i => pts[i]);
+      currentRoute = optimizadas.length? optimizadas : [[]];
       draw();
       ctl.finish('Optimización completada');
       addRecent();
+    }
+
+    function splitIntoRoutes(pts, camiones){
+      const trucks = Math.max(1, camiones|0);
+      const routes = Array.from({length: trucks}, ()=>[]);
+      const loads = new Array(trucks).fill(0);
+      pts.forEach(p=>{
+        let target = 0;
+        for(let i=1;i<trucks;i++){
+          if(loads[i] < loads[target] - 1e-6 || (Math.abs(loads[i]-loads[target]) <= 1e-6 && routes[i].length < routes[target].length)){
+            target = i;
+          }
+        }
+        routes[target].push(p);
+        const monto = Number(p.monto) || 0;
+        loads[target] += monto < 0 ? 0 : monto;
+      });
+      return routes;
     }
 
     function tspHeldKarp(nodes, cfg){
@@ -1993,10 +2081,11 @@
     document.getElementById('btnExportar')?.addEventListener('click', ()=>{
       const origen = State.cab.find(c=>c.codigo===selOrigen.value);
       if(!origen){ return showToast('Elegí una cabecera'); }
-      if(currentRoute.length===0){ return showToast('No hay paradas'); }
+      const allPts = flattenRoutes();
+      if(allPts.length===0){ return showToast('No hay paradas'); }
       const origin = `${parseNumber(origen.lat)},${parseNumber(origen.lng)}`;
       const dest = origin;
-      const way = currentRoute.map(p=> `${p.lat},${p.lng}`).join('|');
+      const way = allPts.map(p=> `${p.lat},${p.lng}`).join('|');
       const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(dest)}&waypoints=${encodeURIComponent(way)}&travelmode=driving`;
       window.open(url, '_blank');
     });
@@ -2004,9 +2093,13 @@
       const nombre = prompt('Nombre de la ruta para historial:', 'Ruta '+ new Date().toLocaleString('es-AR'));
       if(!nombre) return;
       const origen = State.cab.find(c=>c.codigo===selOrigen.value);
+      const rutas = cloneRoutes();
       const rec = {
         id: uuid(), fecha: new Date().toISOString().slice(0,10), nombre,
-        origen: selOrigen.value, puntos: currentRoute.map(p => ({...p})), camiones: parseInt(document.getElementById('nCamiones').value)||1,
+        origen: selOrigen.value,
+        rutas,
+        puntos: flattenRoutes(rutas).map(p => ({...p})),
+        camiones: parseInt(nCamionesInput?.value, 10)||1,
         tiempo: document.getElementById('sumTiempo').textContent, montoPico: document.getElementById('sumMonto').textContent,
         aprobado: true
       };
@@ -2017,22 +2110,28 @@
       const tb = document.getElementById('recentRoutes');
       if(!tb) return;
       const km = '—';
-      const tr = document.createElement('tr'); tr.innerHTML = `<td>${'Ruta '+(new Date().toLocaleDateString('es-AR'))}</td><td>${currentRoute.length}</td><td>${'—'}</td><td>${document.getElementById('sumTiempo').textContent}</td><td>${km}</td>`;
+      const totalPts = flattenRoutes().length;
+      const tr = document.createElement('tr'); tr.innerHTML = `<td>${'Ruta '+(new Date().toLocaleDateString('es-AR'))}</td><td>${totalPts}</td><td>${'—'}</td><td>${document.getElementById('sumTiempo').textContent}</td><td>${km}</td>`;
       tb.prepend(tr);
     }
 
     function renderHist(){
       const tbody = document.getElementById('histTbody');
-      tbody.innerHTML = State.hist.map(h=>`
-        <tr data-id="${h.id}"><td>${h.fecha}</td><td>${h.nombre}</td><td>${h.puntos.length}</td><td>${h.tiempo}</td><td>${h.montoPico}</td><td>${h.aprobado?'Aprobado':'Borrador'}</td>
+      tbody.innerHTML = State.hist.map(h=>{
+        const rutas = Array.isArray(h.rutas)? h.rutas : [h.puntos||[]];
+        const totalPts = rutas.reduce((acc, route)=> acc + (Array.isArray(route)? route.length : 0), 0);
+        return `
+        <tr data-id="${h.id}"><td>${h.fecha}</td><td>${h.nombre}</td><td>${totalPts}</td><td>${h.tiempo}</td><td>${h.montoPico}</td><td>${h.aprobado?'Aprobado':'Borrador'}</td>
         <td><button class="chip" data-act="cargar">Cargar</button> <button class="chip" data-act="del">Eliminar</button></td></tr>
-      `).join('');
+      `;}).join('');
       [...tbody.querySelectorAll('button[data-act="cargar"]')].forEach(b=> b.addEventListener('click', ()=>{
         const id = b.closest('tr').dataset.id;
         const h = State.hist.find(x=>x.id===id); if(!h) return;
         selOrigen.value = h.origen || '';
-        currentRoute = (h.puntos || []).map(p => ({...p}));
-        document.getElementById('nCamiones').value = h.camiones || 1;
+        const rutas = Array.isArray(h.rutas)? h.rutas : [h.puntos || []];
+        currentRoute = rutas.map(route => Array.isArray(route)? route.map(p => ({...p})) : []);
+        if(!currentRoute.length){ currentRoute = [[]]; }
+        if(nCamionesInput){ nCamionesInput.value = h.camiones || Math.max(1, rutas.length); }
         draw(); showToast('Ruta cargada desde historial');
       }));
       [...tbody.querySelectorAll('button[data-act="del"]')].forEach(b=> b.addEventListener('click', ()=>{
