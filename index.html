@@ -583,6 +583,20 @@
             </div>
           </section>
 
+          <!-- PUNTOS IGNORADOS -->
+          <section class="card" style="grid-column:1/-1">
+            <div class="card-header" style="padding:12px 16px;border-bottom:1px solid var(--line-clr);display:flex;align-items:center;justify-content:space-between">
+              <div class="card-title" style="font-weight:800">Puntos ignorados</div>
+              <span class="chip muted" id="ignoredPtsSummary">Sin incidencias</span>
+            </div>
+            <div class="card-body" style="overflow:auto; max-height:200px">
+              <table class="table" style="border:0">
+                <thead><tr><th>Fuente</th><th>Referencia</th><th class="right">Lat</th><th class="right">Lng</th><th>Motivo</th></tr></thead>
+                <tbody id="ignoredPtsTbody"><tr><td colspan="5" style="color:var(--muted-text);font-style:italic;">Sin incidencias</td></tr></tbody>
+              </table>
+            </div>
+          </section>
+
           <!-- RUTA ACTUAL -->
           <section class="card" style="grid-column:1/-1">
             <div class="card-header" style="padding:12px 16px;border-bottom:1px solid var(--line-clr);display:flex;align-items:center;justify-content:space-between">
@@ -1262,7 +1276,16 @@
         tr.addEventListener('click', ()=>{
           const cod = tr.dataset.cod;
           const r = State.suc.find(x=>x.codigo===cod);
-          if(r && sucMap){ sucMarker.setLatLng([r.lat,r.lng]); sucMap.flyTo([r.lat,r.lng], 12, {duration:.6}); }
+          if(r && sucMap){
+            const lat = parseNumber(r.lat);
+            const lng = parseNumber(r.lng);
+            if(!Number.isFinite(lat) || !Number.isFinite(lng)){
+              showToast('Sucursal sin coordenadas válidas');
+              return;
+            }
+            sucMarker.setLatLng([lat,lng]);
+            sucMap.flyTo([lat,lng], 12, {duration:.6});
+          }
         });
       });
     }
@@ -1301,8 +1324,11 @@
       sk.classList.add('hidden'); el.classList.remove('hidden');
       sucMap = L.map('sucMap', { zoomControl:true, minZoom:3 }); 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'&copy; OpenStreetMap'}).addTo(sucMap);
-      sucMarker = L.marker([State.suc[0]?.lat||-34.60, State.suc[0]?.lng||-58.38]).addTo(sucMap);
-      sucMap.setView([State.suc[0]?.lat||-34.60, State.suc[0]?.lng||-58.38], 10);
+      const firstValidSuc = State.suc.map(s=>({ lat: parseNumber(s.lat), lng: parseNumber(s.lng) }))
+        .find(pos => Number.isFinite(pos.lat) && Number.isFinite(pos.lng));
+      const initialSuc = firstValidSuc ? [firstValidSuc.lat, firstValidSuc.lng] : [-34.60, -58.38];
+      sucMarker = L.marker(initialSuc).addTo(sucMap);
+      sucMap.setView(initialSuc, 10);
     });
 
     // Quick actions
@@ -1338,7 +1364,16 @@
       [...tbody.querySelectorAll('tr')].forEach(tr=>{
         tr.addEventListener('click', ()=>{
           const r = State.atms.find(x=>x.codigo===tr.dataset.cod);
-          if(r && atmMap){ atmMarker.setLatLng([r.lat,r.lng]); atmMap.flyTo([r.lat,r.lng], 12, {duration:.6}); }
+          if(r && atmMap){
+            const lat = parseNumber(r.lat);
+            const lng = parseNumber(r.lng);
+            if(!Number.isFinite(lat) || !Number.isFinite(lng)){
+              showToast('ATM sin coordenadas válidas');
+              return;
+            }
+            atmMarker.setLatLng([lat,lng]);
+            atmMap.flyTo([lat,lng], 12, {duration:.6});
+          }
         });
       });
     }
@@ -1372,8 +1407,11 @@
       sk.classList.add('hidden'); el.classList.remove('hidden');
       atmMap = L.map('atmMap', { zoomControl:true, minZoom:3 });
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'&copy; OpenStreetMap'}).addTo(atmMap);
-      atmMarker = L.marker([State.atms[0]?.lat||-34.60, State.atms[0]?.lng||-58.38]).addTo(atmMap);
-      atmMap.setView([State.atms[0]?.lat||-34.60, State.atms[0]?.lng||-58.38], 10);
+      const firstValidAtm = State.atms.map(a=>({ lat: parseNumber(a.lat), lng: parseNumber(a.lng) }))
+        .find(pos => Number.isFinite(pos.lat) && Number.isFinite(pos.lng));
+      const initialAtm = firstValidAtm ? [firstValidAtm.lat, firstValidAtm.lng] : [-34.60, -58.38];
+      atmMarker = L.marker(initialAtm).addTo(atmMap);
+      atmMap.setView(initialAtm, 10);
     });
 
     document.getElementById('atmNew')?.addEventListener('click', ()=>{
@@ -1748,7 +1786,59 @@
     const nCamionesInput = document.getElementById('nCamiones');
     const btnOptimizar = document.getElementById('btnOptimizar');
     const btnExportar = document.getElementById('btnExportar');
+    const ignoredPtsTbody = document.getElementById('ignoredPtsTbody');
+    const ignoredPtsSummary = document.getElementById('ignoredPtsSummary');
     let missingOriginWarned = false;
+    const ignoredRegistry = new Map();
+    let lastMapIgnoredCount = 0;
+
+    function clearIgnoredScope(scope){
+      for(const [key, entry] of [...ignoredRegistry.entries()]){
+        if(entry.scope === scope){ ignoredRegistry.delete(key); }
+      }
+    }
+    function ignoredKey(scope, id){
+      const suffix = id ? String(id) : Math.random().toString(36).slice(2);
+      return `${scope}:${suffix}`;
+    }
+    function noteIgnored(scope, id, info){
+      if(!ignoredPtsTbody) return;
+      const key = ignoredKey(scope, id);
+      ignoredRegistry.set(key, { scope, ...info });
+    }
+    function getIgnored(scope){
+      return scope
+        ? Array.from(ignoredRegistry.values()).filter(entry => entry.scope === scope)
+        : Array.from(ignoredRegistry.values());
+    }
+    function renderIgnoredPoints(){
+      if(!ignoredPtsTbody) return;
+      const items = getIgnored();
+      if(!items.length){
+        ignoredPtsTbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted-text);font-style:italic;">Sin incidencias</td></tr>';
+        if(ignoredPtsSummary){ ignoredPtsSummary.textContent = 'Sin incidencias'; }
+        return;
+      }
+      items.sort((a,b)=>{
+        const srcA = (a.fuente||'').localeCompare(b.fuente||'');
+        if(srcA !== 0) return srcA;
+        return (a.nombre||'').localeCompare(b.nombre||'');
+      });
+      ignoredPtsTbody.innerHTML = items.map(item => `
+        <tr>
+          <td>${item.fuente||'—'}</td>
+          <td>${[(item.codigo||'').trim(), (item.nombre||'').trim()].filter(Boolean).join(' — ') || '—'}</td>
+          <td class="right">${fmtCoord(item.lat)}</td>
+          <td class="right">${fmtCoord(item.lng)}</td>
+          <td>${item.reason||'—'}</td>
+        </tr>
+      `).join('');
+      if(ignoredPtsSummary){
+        const count = items.length;
+        const label = count === 1 ? '1 punto ignorado' : `${count} puntos ignorados`;
+        ignoredPtsSummary.textContent = label;
+      }
+    }
 
     function cloneRoutes(routes = currentRoute){
       return routes.map(route => route.map(p => ({...p})));
@@ -1756,20 +1846,88 @@
     function flattenRoutes(routes = currentRoute){
       return routes.reduce((acc, route)=> acc.concat(route), []);
     }
+    function getLatLngCoords(item){
+      if(!item) return null;
+      const lat = parseNumber(item.lat);
+      const lng = parseNumber(item.lng);
+      if(Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+      return null;
+    }
     function ensureBaseRoute(){
       if(!currentRoute.length){ currentRoute = [[]]; }
     }
 
     // render listado de puntos disponibles (suc + atms + otros + cab + órdenes marcadas "usar")
     function buildSourceRows(){
-      const ensureFinite = rows => rows.filter(r => Number.isFinite(r.lat) && Number.isFinite(r.lng));
+      clearIgnoredScope('source');
+      const rows = [];
+      const addItems = (items, cfg)=>{
+        items.forEach(item => {
+          const lat = parseNumber(item.lat);
+          const lng = parseNumber(item.lng);
+          if(Number.isFinite(lat) && Number.isFinite(lng)){
+            const point = cfg.toPoint ? cfg.toPoint(item, lat, lng) : null;
+            if(point){ rows.push(point); }
+          }else{
+            noteIgnored('source', `${cfg.prefix||'item'}:${cfg.id ? cfg.id(item) : (item.id||item.codigo||item.nombre||'')}`, {
+              fuente: cfg.fuente || 'Datos',
+              tipo: typeof cfg.tipo === 'function' ? cfg.tipo(item) : (cfg.tipo || ''),
+              codigo: typeof cfg.codigo === 'function' ? cfg.codigo(item) : (item.codigo || ''),
+              nombre: typeof cfg.nombre === 'function' ? cfg.nombre(item) : (item.nombre || ''),
+              lat: item.lat,
+              lng: item.lng,
+              reason: cfg.reason || 'Coordenadas inválidas'
+            });
+          }
+        });
+      };
       const ords = State.ord.filter(o=>o.usar);
-      const suc = ensureFinite(State.suc.map(s=> ({tipo:'Sucursal', codigo:s.codigo, nombre:s.nombre, lat: parseNumber(s.lat), lng: parseNumber(s.lng), monto:0, servicio:'', id:'SUC:'+s.codigo})));
-      const atms = ensureFinite(State.atms.map(a=> ({tipo:'ATM', codigo:a.codigo, nombre:a.nombre, lat: parseNumber(a.lat), lng: parseNumber(a.lng), monto:0, servicio:'', id:'ATM:'+a.codigo})));
-      const cab = ensureFinite(State.cab.map(c=> ({tipo:'Cabecera', codigo:c.codigo, nombre:c.nombre, lat: parseNumber(c.lat), lng: parseNumber(c.lng), monto:0, servicio:'', id:'CAB:'+c.codigo})));
-      const otros = ensureFinite(State.otros.map(o=> ({tipo:'Otros', codigo:o.codigo, nombre:o.nombre, lat: parseNumber(o.lat), lng: parseNumber(o.lng), monto:0, servicio:'', id:'OTR:'+o.codigo})));
-      const ordMapped = ensureFinite(ords.map(o=> ({tipo:o.categoria, codigo:o.codigo, nombre:o.nombre, lat: parseNumber(o.lat), lng: parseNumber(o.lng), monto:o.monto, servicio:o.servicio, id:o.id})));
-      return [...ordMapped, ...suc, ...atms, ...otros]; // cabeceras no se mezclan aquí (van como origen)
+      addItems(ords, {
+        prefix:'orden',
+        fuente:'Órdenes',
+        tipo:o=>o.categoria||'Orden',
+        id:o=>o.id||o.codigo||o.nombre||uuid(),
+        codigo:o=>o.codigo||'',
+        nombre:o=>o.nombre||'',
+        toPoint:(o,lat,lng)=> ({tipo:o.categoria, codigo:o.codigo, nombre:o.nombre, lat, lng, monto:o.monto, servicio:o.servicio, id:o.id})
+      });
+      addItems(State.suc, {
+        prefix:'sucursal',
+        fuente:'Sucursales',
+        tipo:()=> 'Sucursal',
+        id:s=>s.codigo||uuid(),
+        toPoint:(s,lat,lng)=> ({tipo:'Sucursal', codigo:s.codigo, nombre:s.nombre, lat, lng, monto:0, servicio:'', id:'SUC:'+s.codigo})
+      });
+      addItems(State.atms, {
+        prefix:'atm',
+        fuente:'ATMs',
+        tipo:()=> 'ATM',
+        id:a=>a.codigo||uuid(),
+        toPoint:(a,lat,lng)=> ({tipo:'ATM', codigo:a.codigo, nombre:a.nombre, lat, lng, monto:0, servicio:'', id:'ATM:'+a.codigo})
+      });
+      addItems(State.otros, {
+        prefix:'otro',
+        fuente:'Otros bancos',
+        tipo:()=> 'Otros',
+        id:o=>o.codigo||uuid(),
+        toPoint:(o,lat,lng)=> ({tipo:'Otros', codigo:o.codigo, nombre:o.nombre, lat, lng, monto:0, servicio:'', id:'OTR:'+o.codigo})
+      });
+      State.cab.forEach(c=>{
+        const lat = parseNumber(c.lat);
+        const lng = parseNumber(c.lng);
+        if(!Number.isFinite(lat) || !Number.isFinite(lng)){
+          noteIgnored('source', `cabecera:${c.codigo||c.nombre||uuid()}`, {
+            fuente:'Cabeceras',
+            tipo:'Cabecera',
+            codigo:c.codigo||'',
+            nombre:c.nombre||'',
+            lat:c.lat,
+            lng:c.lng,
+            reason:'Cabecera sin coordenadas válidas'
+          });
+        }
+      });
+      return rows; // cabeceras no se mezclan aquí (van como origen)
     }
 
     function renderPts(){
@@ -1805,10 +1963,16 @@
         const src = buildSourceRows().find(x=>x.id===id); if(!src) return;
         addPointToRoute(src, b.closest('tr').querySelector('input[data-act="prio"]')?.checked);
       }));
+      renderIgnoredPoints();
     }
     ptsQ?.addEventListener('input', renderPts);
     document.getElementById('addFromOrdenes')?.addEventListener('click', ()=>{
-      State.ord.filter(o=>o.usar).forEach(o => addPointToRoute({id:o.id, tipo:o.categoria, codigo:o.codigo, nombre:o.nombre, lat:o.lat, lng:o.lng, monto:o.monto, servicio:o.servicio}, false));
+      State.ord.filter(o=>o.usar).forEach(o => {
+        const coords = getLatLngCoords(o);
+        if(!coords){ return; }
+        addPointToRoute({id:o.id, tipo:o.categoria, codigo:o.codigo, nombre:o.nombre, lat:coords.lat, lng:coords.lng, monto:o.monto, servicio:o.servicio}, false);
+      });
+      renderIgnoredPoints();
     });
 
     function addPointToRoute(p, priority=false){
@@ -1877,6 +2041,7 @@
 
       // mapa
       waitForLeaflet().then(()=>{
+        clearIgnoredScope('map');
         if(!routeMap){
           mapSk.classList.add('hidden'); mapEl.classList.remove('hidden');
           routeMap = L.map('routeMap', { zoomControl:true, minZoom:3 });
@@ -1889,28 +2054,59 @@
         const origen = State.cab.find(c=>c.codigo===origenCodigo);
         const bounds = [];
         const palette = ['var(--route-a)','var(--route-b)','var(--route-c)','#f39c12','#8e44ad','#16a085','#34495e'];
-        if(origen && isFinite(parseNumber(origen.lat)) && isFinite(parseNumber(origen.lng))){
-          const m = L.marker([parseNumber(origen.lat), parseNumber(origen.lng)], { title:'Origen: '+origen.nombre });
+        const originCoords = getLatLngCoords(origen);
+        if(origen && originCoords){
+          const m = L.marker([originCoords.lat, originCoords.lng], { title:'Origen: '+origen.nombre });
           m.addTo(routeMap); routeMarkers.push(m); bounds.push(m.getLatLng());
+        }else if(origen){
+          noteIgnored('map', `cabecera:${origen.codigo||origen.nombre||uuid()}`, {
+            fuente:'Cabecera seleccionada',
+            tipo:'Cabecera',
+            codigo:origen.codigo||'',
+            nombre:origen.nombre||'',
+            lat:origen.lat,
+            lng:origen.lng,
+            reason:'Cabecera sin coordenadas válidas'
+          });
         }
         let seq = 0;
         currentRoute.forEach((route, rIdx)=>{
           const color = palette[rIdx % palette.length];
+          const validCoords = [];
           route.forEach((p)=>{
             seq++;
+            const coords = getLatLngCoords(p);
+            if(!coords){
+              noteIgnored('map', `ruta:${p.id||p.codigo||p.nombre||seq}`, {
+                fuente:'Ruta actual',
+                tipo:p.tipo||'Punto',
+                codigo:p.codigo||'',
+                nombre:p.nombre||'',
+                lat:p.lat,
+                lng:p.lng,
+                reason:'Coordenadas inválidas en el mapa'
+              });
+              return;
+            }
             const divIcon = L.divIcon({className:'', html:`<div style="display:grid;place-items:center;width:30px;height:30px;border-radius:10px;background:#fff;border:2px solid ${color}; font:800 12px/1 Inter,sans-serif;color:var(--ink-800);">${seq}</div>`, iconSize:[30,30], iconAnchor:[15,15]});
-            const m = L.marker([p.lat, p.lng], {icon:divIcon, title: `${labelForRoute(rIdx)} · ${seq}. ${p.tipo} — ${p.nombre}`});
+            const m = L.marker([coords.lat, coords.lng], {icon:divIcon, title: `${labelForRoute(rIdx)} · ${seq}. ${p.tipo} — ${p.nombre}`});
             m.addTo(routeMap); routeMarkers.push(m); bounds.push(m.getLatLng());
+            validCoords.push(coords);
           });
-          if(origen && route.length){
-            const originLat = parseNumber(origen.lat);
-            const originLng = parseNumber(origen.lng);
-            const coords = [[originLat, originLng]].concat(route.map(p=>[p.lat,p.lng])).concat([[originLat, originLng]]);
+          if(originCoords && validCoords.length){
+            const coords = [[originCoords.lat, originCoords.lng], ...validCoords.map(c=>[c.lat, c.lng]), [originCoords.lat, originCoords.lng]];
             const l = L.polyline(coords, { color, weight:4, opacity:.9 });
             l.addTo(routeMap); routeLines.push(l);
           }
         });
         if(bounds.length) routeMap.fitBounds(L.latLngBounds(bounds), {padding:[20,20]});
+        renderIgnoredPoints();
+        const mapIgnoredCount = getIgnored('map').length;
+        if(mapIgnoredCount && mapIgnoredCount !== lastMapIgnoredCount){
+          const label = mapIgnoredCount === 1 ? '1 punto se omitió en el mapa por coordenadas inválidas' : `${mapIgnoredCount} puntos se omitieron en el mapa por coordenadas inválidas`;
+          showToast(label);
+        }
+        lastMapIgnoredCount = mapIgnoredCount;
         updateSummary();
       });
     }
@@ -1931,9 +2127,8 @@
       const sumTiempoEl = document.getElementById('sumTiempo');
       const summaryEl = document.getElementById('routeSummary');
       const origen = State.cab.find(c=>c.codigo===selOrigen.value);
-      const originLat = parseNumber(origen?.lat);
-      const originLng = parseNumber(origen?.lng);
-      const hasOrigen = origen && Number.isFinite(originLat) && Number.isFinite(originLng);
+      const originCoords = getLatLngCoords(origen);
+      const hasOrigen = Boolean(originCoords);
 
       if(btnOptimizar){ btnOptimizar.disabled = !hasOrigen; }
       if(btnExportar){ btnExportar.disabled = !hasOrigen; }
@@ -1968,17 +2163,18 @@
         let maxCargaRuta = 0;
         let minRuta = 0;
         let distKmRuta = 0;
-        let last = {lat: originLat, lng: originLng};
+        let last = originCoords ? {...originCoords} : null;
         route.forEach(p=>{
-          if(last){ distKmRuta += haversine(last.lat,last.lng,p.lat,p.lng); }
+          const coords = getLatLngCoords(p);
+          if(last && coords){ distKmRuta += haversine(last.lat,last.lng,coords.lat,coords.lng); }
           minRuta += stopTimeFor(p.tipo);
           const monto = Number(p.monto) || 0;
           carga += monto < 0 ? 0 : monto;
           maxCargaRuta = Math.max(maxCargaRuta, carga);
-          last = p;
+          if(coords){ last = coords; }
         });
-        if(route.length && last){
-          distKmRuta += haversine(last.lat,last.lng, originLat, originLng);
+        if(originCoords && route.length && last){
+          distKmRuta += haversine(last.lat,last.lng, originCoords.lat, originCoords.lng);
         }
         const tiempoTraslado = distKmRuta / (cfg.vel||40) * 60 * (cfg.trafficFactor||1);
         totalTiempo += minRuta + tiempoTraslado;
