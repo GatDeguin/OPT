@@ -144,6 +144,7 @@
 
     .icon-btn{--size:36px;width:var(--size);height:var(--size);border-radius:10px;background:rgba(255,255,255,.15);display:grid;place-items:center;border:1px solid rgba(255,255,255,.25);backdrop-filter: blur(2px);cursor:pointer;transition:transform .15s ease, background .2s;}
     .icon-btn:hover{transform:translateY(-1px);background:rgba(255,255,255,.22)}
+    .icon-btn.small{--size:32px}
 
     .content{padding:22px;display:grid;gap:18px;grid-template-columns:1fr}
     .hidden{display:none !important}
@@ -278,6 +279,10 @@
     .progress{margin: 6px 2px 0 2px;background: #ffffff;border-radius: 999px;border: 1px solid rgba(15,23,42,.08);overflow:hidden;inline-size: 100%; block-size: 10px}
     .bar{inline-size:0%;block-size:100%;background:linear-gradient(90deg, var(--accent), #7cc2ff);transition:inline-size .4s ease}
     .status{font-size:.95rem;color:var(--text);opacity:.85;margin-top:6px}
+    #loaderClose{transition:background .2s ease, color .2s ease, box-shadow .2s ease, transform .15s ease}
+    #loaderClose:disabled{opacity:.45;cursor:not-allowed;pointer-events:none;transform:none}
+    #loaderClose.is-ready{background:linear-gradient(180deg, rgba(227,90,90,.18), rgba(227,90,90,.08));border-color:rgba(227,90,90,.32);color:var(--danger);box-shadow:0 10px 24px rgba(227,90,90,.18)}
+    #loaderClose.is-ready:hover{background:linear-gradient(180deg, rgba(227,90,90,.24), rgba(227,90,90,.12))}
 
     .scene{position:relative;inline-size:100%; block-size: clamp(240px, 48svh, 460px); border: 12px solid #fff; border-radius: calc(var(--ui-radius) + 6px); overflow:hidden; background:#e6f5ff; box-shadow: inset 0 0 0 1px rgba(15,23,42,.05)}
     .background, .foreground{position:absolute; inset:auto 0 0 0; inline-size:100%; block-size:100%; background-size:cover; background-repeat: repeat-x; z-index:0; animation-play-state:paused}
@@ -293,6 +298,14 @@
     .scene.is-running .truck,
     .scene.is-running .smoke,
     .scene.is-running .dust{ animation-play-state:running }
+
+    .scene.is-paused .background,
+    .scene.is-paused .foreground,
+    .scene.is-paused .truck,
+    .scene.is-paused .smoke,
+    .scene.is-paused .dust{ animation-play-state:paused }
+
+    .modal.has-error .status{color:var(--danger);font-weight:700}
 
     @keyframes scroll-bg{ from{background-position:0 0} to{background-position:-1920px 0} }
     @keyframes scroll-fg{ from{background-position:0 0} to{background-position:-1280px 0} }
@@ -1750,13 +1763,21 @@
     const scene = document.getElementById('scene');
     const bar = document.getElementById('progressBar');
     const status = document.getElementById('loaderDesc');
+    const closeBtn = document.getElementById('loaderClose');
+    const CLOSE_READY_CLASS = 'is-ready';
+    const MODAL_FAIL_CLASS = 'has-error';
+    const SCENE_PAUSED_CLASS = 'is-paused';
     let failTimer = null;
     let timerId = null;
-    document.getElementById('loaderClose').addEventListener('click', hide);
+    closeBtn.addEventListener('click', hide);
     function open(msg){
       modal.classList.add('open'); modal.setAttribute('aria-hidden','false');
+      modal.classList.remove(MODAL_FAIL_CLASS);
       bar.style.inlineSize='0%'; status.textContent = msg || 'Optimizando…';
+      scene.classList.remove(SCENE_PAUSED_CLASS);
       scene.classList.add('is-running');
+      closeBtn.disabled = true;
+      closeBtn.classList.remove(CLOSE_READY_CLASS);
       if(failTimer){ clearTimeout(failTimer); failTimer = null; }
       auto();
       return { setMessage, setProgress, finish, fail, close: hide };
@@ -1765,15 +1786,24 @@
     function setProgress(p){ const v = clamp(p,0,100); bar.style.inlineSize=v+'%'; bar.parentElement.setAttribute('aria-valuenow', v); }
     function finish(t){ setProgress(100); setMessage(t||'Listo ✅'); setTimeout(hide, 500); }
     function fail(t){
-      setMessage(t||'Ocurrió un error');
+      // Detenemos la animación y resaltamos el botón de cierre para guiar la recuperación del usuario.
+      setMessage(t||'Ocurrió un error. Elegí una cabecera y volvé a intentar.');
       if(timerId !== null){ clearInterval(timerId); timerId = null; }
       stopAnimation();
+      scene.classList.add(SCENE_PAUSED_CLASS);
+      modal.classList.add(MODAL_FAIL_CLASS);
+      closeBtn.disabled = false;
+      closeBtn.classList.add(CLOSE_READY_CLASS);
       if(failTimer){ clearTimeout(failTimer); }
-      failTimer = setTimeout(()=>{ hide(); }, 1400);
+      failTimer = setTimeout(()=>{ closeBtn.focus(); failTimer = null; }, 180);
     }
     function hide(){
       if(timerId !== null){ clearInterval(timerId); timerId = null; }
       stopAnimation();
+      scene.classList.remove(SCENE_PAUSED_CLASS);
+      closeBtn.disabled = false;
+      closeBtn.classList.remove(CLOSE_READY_CLASS);
+      modal.classList.remove(MODAL_FAIL_CLASS);
       if(failTimer){ clearTimeout(failTimer); failTimer = null; }
       modal.classList.remove('open'); modal.setAttribute('aria-hidden','true');
     }
