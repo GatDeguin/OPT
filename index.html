@@ -2587,13 +2587,24 @@
       }
     });
     document.getElementById('btnAprobar')?.addEventListener('click', ()=>{
+      const origenCodigo = (selOrigen?.value || '').trim();
+      const hasRoute = Array.isArray(currentRoute) && currentRoute.length > 0
+        && currentRoute.some(route => Array.isArray(route) && route.length > 0);
+      if(!hasRoute || !origenCodigo){
+        showToast('Seleccioná una cabecera y asegurate de que la ruta tenga paradas antes de aprobar.');
+        return;
+      }
       const nombre = prompt('Nombre de la ruta para historial:', 'Ruta '+ new Date().toLocaleString('es-AR'));
       if(!nombre) return;
-      const origen = State.cab.find(c=>c.codigo===selOrigen.value);
-      const rutas = cloneRoutes();
+      const origen = State.cab.find(c=>c.codigo===origenCodigo);
+      if(!origen){
+        showToast('Cabecera inválida. Revisá la selección antes de aprobar.');
+        return;
+      }
+      const rutas = cloneRoutes().filter(route => Array.isArray(route) && route.length > 0);
       const rec = {
         id: uuid(), fecha: new Date().toISOString().slice(0,10), nombre,
-        origen: selOrigen.value,
+        origen: origenCodigo,
         rutas,
         puntos: flattenRoutes(rutas).map(p => ({...p})),
         camiones: parseInt(nCamionesInput?.value, 10)||1,
