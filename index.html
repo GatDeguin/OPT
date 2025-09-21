@@ -1269,6 +1269,14 @@
     hist: load(DB.hist, [])
   };
 
+  function notifyDataUpdate(scope){
+    document.dispatchEvent(new CustomEvent('data:updated', { detail: { scope } }));
+    const routeAPI = globalThis.Route;
+    if(routeAPI && typeof routeAPI.refreshSources === 'function'){
+      routeAPI.refreshSources();
+    }
+  }
+
   // ========= Sucursales =========
   (function(){
     const tbody = document.getElementById('sucTbody');
@@ -1301,6 +1309,7 @@
           }
         });
       });
+      notifyDataUpdate('sucursales');
     }
     qEl?.addEventListener('input', render);
 
@@ -1389,6 +1398,7 @@
           }
         });
       });
+      notifyDataUpdate('atms');
     }
     qEl?.addEventListener('input', render);
 
@@ -1476,6 +1486,7 @@
           selOrigen.dispatchEvent(new Event('change'));
         }
       }
+      notifyDataUpdate('cabeceras');
     }
     qEl?.addEventListener('input', render);
 
@@ -1533,6 +1544,7 @@
       const arr = State.otros.filter(r=> !q || (r.codigo||'').toLowerCase().includes(q) || (r.nombre||'').toLowerCase().includes(q));
       cntEl.textContent = arr.length;
       tbody.innerHTML = arr.map(r => `<tr><td>${r.codigo||''}</td><td>${r.nombre||''}</td><td>${fmtCoord(r.lat)}</td><td>${fmtCoord(r.lng)}</td><td>${r.direccion||''}</td></tr>`).join('');
+      notifyDataUpdate('otros');
     }
     qEl?.addEventListener('input', render);
     document.getElementById('otrosImport')?.addEventListener('click', ()=> document.getElementById('otrosImportInput').click());
@@ -1573,6 +1585,7 @@
       const arr = State.cho.filter(r=> !q || Object.values(r).some(v => String(v).toLowerCase().includes(q)));
       cntEl.textContent = arr.length;
       tbody.innerHTML = arr.map(r => `<tr><td>${r.legajo}</td><td>${r.nombre}</td><td>${r.licencia}</td><td>${r.vto}</td><td>${r.tel||''}</td></tr>`).join('');
+      notifyDataUpdate('choferes');
     }
     qEl?.addEventListener('input', render);
     document.getElementById('choImport')?.addEventListener('click', ()=> document.getElementById('choImportInput').click());
@@ -1602,6 +1615,7 @@
       const arr = State.cam.filter(r=> !q || Object.values(r).some(v => String(v).toLowerCase().includes(q)));
       cntEl.textContent = arr.length;
       tbody.innerHTML = arr.map(r => `<tr><td>${r.id}</td><td>${r.modelo||''}</td><td class="right">${fmtMoney(r.capMonto||0)}</td><td class="right">${r.capKg||0}</td><td class="right">${r.velMax||0}</td></tr>`).join('');
+      notifyDataUpdate('camiones');
     }
     qEl?.addEventListener('input', render);
     document.getElementById('camImport')?.addEventListener('click', ()=> document.getElementById('camImportInput').click());
@@ -1649,7 +1663,10 @@
           if(o){
             o.usar = !!ev.target.checked;
             save(DB.ord, State.ord);
-            Route?.refreshSources?.();
+            const routeAPI = globalThis.Route;
+            if(routeAPI && typeof routeAPI.refreshSources === 'function'){
+              routeAPI.refreshSources();
+            }
           }
         });
       });
@@ -2022,6 +2039,7 @@
       renderPts();
     }
     ptsQ?.addEventListener('input', renderPts);
+    document.addEventListener('data:updated', ()=> refreshSources());
     document.getElementById('addFromOrdenes')?.addEventListener('click', ()=>{
       State.ord.filter(o=>o.usar).forEach(o => {
         const coords = getLatLngCoords(o);
@@ -2544,7 +2562,9 @@
 
     // Init
     renderPts(); draw();
-    return { renderPts, refreshSources };
+    const api = { renderPts, refreshSources };
+    globalThis.Route = api;
+    return api;
   })();
 
   /* =====================================================================
