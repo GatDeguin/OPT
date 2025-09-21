@@ -1863,6 +1863,7 @@
     let missingOriginWarned = false;
     const ignoredRegistry = new Map();
     let lastMapIgnoredCount = 0;
+    const lastSummary = { distKm: null };
 
     function clearIgnoredScope(scope){
       for(const [key, entry] of [...ignoredRegistry.entries()]){
@@ -2301,6 +2302,7 @@
         }else{
           missingOriginWarned = false;
         }
+        lastSummary.distKm = null;
         return;
       }
 
@@ -2308,6 +2310,7 @@
 
       let maxMonto = 0;
       let totalTiempo = 0;
+      let totalDistKm = 0;
       currentRoute.forEach(route=>{
         let carga = 0;
         let maxCargaRuta = 0;
@@ -2329,7 +2332,9 @@
         const tiempoTraslado = distKmRuta / (cfg.vel||40) * 60 * (cfg.trafficFactor||1);
         totalTiempo += minRuta + tiempoTraslado;
         maxMonto = Math.max(maxMonto, maxCargaRuta);
+        totalDistKm += distKmRuta;
       });
+      lastSummary.distKm = Number.isFinite(totalDistKm) ? totalDistKm : null;
       const totalMin = Math.round(totalTiempo);
       if(sumMontoEl){
         sumMontoEl.textContent = fmtMoney(maxMonto);
@@ -2602,24 +2607,52 @@
         return;
       }
       const rutas = cloneRoutes().filter(route => Array.isArray(route) && route.length > 0);
+      const puntos = flattenRoutes(rutas).map(p => ({...p}));
+      const distKm = Number.isFinite(lastSummary.distKm) ? Math.round(lastSummary.distKm * 10) / 10 : null;
       const rec = {
         id: uuid(), fecha: new Date().toISOString().slice(0,10), nombre,
         origen: origenCodigo,
         rutas,
-        puntos: flattenRoutes(rutas).map(p => ({...p})),
+        puntos,
+        distKm,
+        camionId: null,
         camiones: parseInt(nCamionesInput?.value, 10)||1,
         tiempo: document.getElementById('sumTiempo').textContent, montoPico: document.getElementById('sumMonto').textContent,
         aprobado: true
       };
-      State.hist.unshift(rec); save(DB.hist, State.hist); renderHist(); showToast('Ruta aprobada y guardada');
+      State.hist.unshift(rec); save(DB.hist, State.hist); renderHist(); addRecent(rec); showToast('Ruta aprobada y guardada');
     });
 
-    function addRecent(){
+    function addRecent(entry = {}){
       const tb = document.getElementById('recentRoutes');
       if(!tb) return;
-      const km = '—';
-      const totalPts = flattenRoutes().length;
-      const tr = document.createElement('tr'); tr.innerHTML = `<td>${'Ruta '+(new Date().toLocaleDateString('es-AR'))}</td><td>${totalPts}</td><td>${'—'}</td><td>${document.getElementById('sumTiempo').textContent}</td><td>${km}</td>`;
+      const defaultName = 'Ruta '+(new Date().toLocaleDateString('es-AR'));
+      const nombre = typeof entry.nombre === 'string' && entry.nombre.trim() ? entry.nombre.trim() : defaultName;
+      let totalPts;
+      if(Number.isFinite(entry.totalPuntos)){
+        totalPts = entry.totalPuntos;
+      }else if(Array.isArray(entry.puntos)){
+        totalPts = entry.puntos.length;
+      }else if(Array.isArray(entry.rutas)){
+        totalPts = entry.rutas.reduce((acc, route)=> acc + (Array.isArray(route)? route.length : 0), 0);
+      }else{
+        totalPts = flattenRoutes().length;
+      }
+      const sumTiempoEl = document.getElementById('sumTiempo');
+      const tiempoRaw = typeof entry.tiempo === 'string' ? entry.tiempo.trim() : '';
+      const fallbackTiempo = (sumTiempoEl?.textContent || '').trim();
+      const tiempo = tiempoRaw && tiempoRaw !== '—' ? tiempoRaw : (fallbackTiempo && fallbackTiempo !== '—' ? fallbackTiempo : 'N/D');
+      const vehiculoRaw = entry.camionId ?? entry.camionAsignado ?? entry.vehiculo ?? entry.camion ?? null;
+      const vehiculo = vehiculoRaw === null || vehiculoRaw === undefined || String(vehiculoRaw).trim() === '' ? 'N/D' : String(vehiculoRaw).trim();
+      const distSource = Number.isFinite(entry.distKm) ? entry.distKm : (Number.isFinite(lastSummary.distKm) ? lastSummary.distKm : null);
+      let km = 'N/D';
+      if(Number.isFinite(distSource)){
+        const rounded = Math.round(distSource * 10) / 10;
+        const minFraction = Number.isInteger(rounded) ? 0 : 1;
+        km = rounded.toLocaleString('es-AR', { minimumFractionDigits: minFraction, maximumFractionDigits: 1 });
+      }
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${nombre}</td><td>${totalPts}</td><td>${vehiculo}</td><td>${tiempo}</td><td>${km}</td>`;
       tb.prepend(tr);
     }
 
