@@ -509,7 +509,7 @@
           <div class="body">
             <table aria-label="Rutas recientes">
               <thead><tr><th>Ruta</th><th>Paradas</th><th>Vehículo</th><th>Horas</th><th>Kilómetros</th></tr></thead>
-              <tbody id="recentRoutes"><tr><td>Ruta 1</td><td>9</td><td>Camión 101</td><td>17:20</td><td>874</td></tr></tbody>
+              <tbody id="recentRoutes"></tbody>
             </table>
           </div>
         </div>
@@ -2623,9 +2623,11 @@
       State.hist.unshift(rec); save(DB.hist, State.hist); renderHist(); addRecent(rec); showToast('Ruta aprobada y guardada');
     });
 
-    function addRecent(entry = {}){
+    function addRecent(entry = {}, options = {}){
       const tb = document.getElementById('recentRoutes');
       if(!tb) return;
+      const { prepend = true } = options;
+      tb.querySelector('[data-placeholder="recent"]')?.remove();
       const defaultName = 'Ruta '+(new Date().toLocaleDateString('es-AR'));
       const nombre = typeof entry.nombre === 'string' && entry.nombre.trim() ? entry.nombre.trim() : defaultName;
       let totalPts;
@@ -2651,13 +2653,45 @@
         const minFraction = Number.isInteger(rounded) ? 0 : 1;
         km = rounded.toLocaleString('es-AR', { minimumFractionDigits: minFraction, maximumFractionDigits: 1 });
       }
+      const rowHtml = `<td>${nombre}</td><td>${totalPts}</td><td>${vehiculo}</td><td>${tiempo}</td><td>${km}</td>`;
+      let existing = null;
+      if(entry && entry.id){
+        existing = Array.from(tb.querySelectorAll('tr[data-id]')).find(tr => tr.dataset.id === entry.id) || null;
+      }
+      if(existing){
+        existing.innerHTML = rowHtml;
+        if(prepend){ tb.prepend(existing); }
+        return existing;
+      }
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${nombre}</td><td>${totalPts}</td><td>${vehiculo}</td><td>${tiempo}</td><td>${km}</td>`;
-      tb.prepend(tr);
+      if(entry && entry.id){ tr.dataset.id = entry.id; }
+      tr.innerHTML = rowHtml;
+      if(prepend){
+        tb.prepend(tr);
+      }else{
+        tb.appendChild(tr);
+      }
+      return tr;
+    }
+
+    function renderRecentFromHistory(){
+      const tb = document.getElementById('recentRoutes');
+      if(!tb) return;
+      tb.innerHTML = '';
+      const recent = State.hist.filter(item => item && item.aprobado).slice(0, 5);
+      if(!recent.length){
+        const placeholder = document.createElement('tr');
+        placeholder.dataset.placeholder = 'recent';
+        placeholder.innerHTML = `<td colspan="5" style="padding:16px;text-align:center;color:var(--muted-text);font-weight:700;">Sin rutas aprobadas todavía</td>`;
+        tb.appendChild(placeholder);
+        return;
+      }
+      recent.forEach(entry => addRecent(entry, { prepend: false }));
     }
 
     function renderHist(){
       const tbody = document.getElementById('histTbody');
+      if(!tbody) return;
       tbody.innerHTML = State.hist.map(h=>{
         const rutas = Array.isArray(h.rutas)? h.rutas : [h.puntos||[]];
         const totalPts = rutas.reduce((acc, route)=> acc + (Array.isArray(route)? route.length : 0), 0);
@@ -2679,6 +2713,7 @@
         const id = b.closest('tr').dataset.id;
         const i = State.hist.findIndex(x=>x.id===id); if(i>=0 && confirm('¿Eliminar del historial?')){ State.hist.splice(i,1); save(DB.hist, State.hist); renderHist(); }
       }));
+      renderRecentFromHistory();
     }
     renderHist();
 
