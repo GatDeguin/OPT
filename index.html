@@ -2111,7 +2111,12 @@
     document.getElementById('btnDeshacer')?.addEventListener('click', ()=>{
       const prev = undoStack.pop(); if(prev){ currentRoute = cloneRoutes(prev); draw(); }
     });
-    document.getElementById('btnLimpiarRuta')?.addEventListener('click', ()=>{ undoStack.push(cloneRoutes()); currentRoute = [[]]; draw(); });
+    document.getElementById('btnLimpiarRuta')?.addEventListener('click', ()=>{
+      if(!confirm('¿Eliminar todas las paradas?')) return;
+      undoStack.push(cloneRoutes());
+      currentRoute = [[]];
+      draw();
+    });
 
     function stopTimeFor(tipo){
       if(/^suc/i.test(tipo||'')) return cfg.stopSuc||5;
