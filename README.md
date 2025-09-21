@@ -7,3 +7,4 @@
 - [ ] Restaurar un valor de **Max. monto por camión** suficiente para la ruta y confirmar que la optimización finaliza correctamente y que la alerta visual desaparece.
 - [ ] Dejar la cabecera sin seleccionar, agregar varios puntos a la ruta y verificar que el resumen muestra guiones en tiempo/monto mientras se muestra un aviso pidiendo elegir cabecera; los botones **Optimizar** y **Exportar** deben permanecer deshabilitados.
 - [ ] Importar un CSV de órdenes con algunas filas marcadas como **usar** pero sin coordenadas. Al cargarlo debe mostrarse un aviso y las órdenes sin lat/lng no deben aparecer en la lista ni agregarse a la ruta.
+- [ ] En la vista de rutas, cargar varias paradas y presionar **Limpiar**. Cancelar el diálogo de confirmación debe mantener intacta la lista de paradas actual.
