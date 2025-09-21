@@ -2563,9 +2563,23 @@
       if(allPts.length===0){ return showToast('No hay paradas'); }
       const origin = `${parseNumber(origen.lat)},${parseNumber(origen.lng)}`;
       const dest = origin;
-      const way = allPts.map(p=> `${p.lat},${p.lng}`).join('|');
-      const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(dest)}&waypoints=${encodeURIComponent(way)}&travelmode=driving`;
-      window.open(url, '_blank');
+      const maxWaypoints = 25;
+      const needsSplit = allPts.length > maxWaypoints;
+      const chunks = [];
+      for(let i=0; i<allPts.length; i+=maxWaypoints){
+        chunks.push(allPts.slice(i, i+maxWaypoints));
+      }
+      const urls = chunks.map(chunk => {
+        const waypoints = chunk.map(p => `${p.lat},${p.lng}`).join('|');
+        const wayParam = waypoints ? `&waypoints=${encodeURIComponent(waypoints)}` : '';
+        return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(dest)}${wayParam}&travelmode=driving`;
+      });
+      urls.forEach(url => window.open(url, '_blank'));
+      if(needsSplit){
+        showToast(`Se generaron ${urls.length} URLs por superar el límite de ${maxWaypoints} paradas de Google Maps (total: ${allPts.length}).`);
+      }else{
+        showToast('Se generó 1 URL para Google Maps (ruta dentro del límite de 25 paradas).');
+      }
     });
     document.getElementById('btnAprobar')?.addEventListener('click', ()=>{
       const nombre = prompt('Nombre de la ruta para historial:', 'Ruta '+ new Date().toLocaleString('es-AR'));
