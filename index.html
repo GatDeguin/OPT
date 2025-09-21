@@ -194,9 +194,11 @@
     .about ul{margin:0;padding-left:20px;color:var(--ink-600);font-weight:700}
     .about li{margin:8px 0}
     .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:linear-gradient(180deg, rgba(0,0,0,.02), rgba(0,0,0,.04));border:1px solid var(--line-clr);color:var(--text);font-weight:800;letter-spacing:.2px;cursor:pointer;transition:transform .15s ease, box-shadow .25s ease, background .25s ease}
+    .chip.icon{padding:4px 8px;font-size:12px;line-height:1;min-width:0;justify-content:center}
     button.chip:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
     html[data-theme="dark"] .chip{background:linear-gradient(180deg,#0c1015,#0a0e13)}
     .chip:hover{transform:translateY(-1px)}
+    .route-actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
     .banner{position:relative;border-radius:var(--ui-radius);overflow:hidden;min-height:110px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border:1px solid var(--line-clr);background:radial-gradient(120% 140% at -10% 50%, var(--banner-from) 0%, var(--banner-mid) 60%, var(--banner-to) 100%);box-shadow:var(--shadow);isolation:isolate}
     .banner .bapro{font-weight:800;font-size:46px;letter-spacing:.4px;color:var(--banner-text);text-shadow:0 2px 8px rgba(0,0,0,.35)}
     .banner .tag{font-weight:700;font-size:22px;color:var(--banner-text);opacity:.96}
@@ -617,7 +619,7 @@
             </div>
             <div class="card-body" style="overflow:auto; max-height:320px">
               <table class="table" style="border:0">
-                <thead><tr><th>#</th><th>Tipo</th><th>Nombre</th><th class="right">Monto</th><th>Servicio</th><th>Quitar</th></tr></thead>
+                <thead><tr><th>#</th><th>Tipo</th><th>Nombre</th><th class="right">Monto</th><th>Servicio</th><th>Acciones</th></tr></thead>
                 <tbody id="rutaTbody"></tbody>
               </table>
             </div>
@@ -2072,6 +2074,40 @@
       if(flattenRoutes().length===0){ currentRoute = [[]]; }
       draw();
     }
+    function movePoint(from, to){
+      if(!from || !to) return;
+      const fromRouteIdx = Number(from.route);
+      const fromIdx = Number(from.index);
+      const toRouteIdx = Number(to.route);
+      const toIdx = Number(to.index);
+      if(!Number.isInteger(fromRouteIdx) || !Number.isInteger(fromIdx) || !Number.isInteger(toRouteIdx) || !Number.isInteger(toIdx)){
+        return;
+      }
+      if(fromRouteIdx < 0 || fromRouteIdx >= currentRoute.length) return;
+      if(toRouteIdx < 0 || toRouteIdx >= currentRoute.length) return;
+      const fromRoute = currentRoute[fromRouteIdx];
+      const toRoute = currentRoute[toRouteIdx];
+      if(!fromRoute || !toRoute) return;
+      if(fromIdx < 0 || fromIdx >= fromRoute.length) return;
+      if(fromRouteIdx === toRouteIdx && fromIdx === toIdx) return;
+      const point = fromRoute[fromIdx];
+      if(!point) return;
+      undoStack.push(cloneRoutes());
+      fromRoute.splice(fromIdx, 1);
+      let targetIndex = toIdx;
+      const maxIndex = toRoute.length;
+      if(fromRouteIdx === toRouteIdx){
+        if(targetIndex > fromIdx){
+          targetIndex = Math.min(targetIndex, maxIndex);
+        }else{
+          targetIndex = Math.max(0, Math.min(targetIndex, maxIndex));
+        }
+      }else{
+        targetIndex = Math.max(0, Math.min(targetIndex, maxIndex));
+      }
+      toRoute.splice(targetIndex, 0, point);
+      draw();
+    }
     document.getElementById('btnDeshacer')?.addEventListener('click', ()=>{
       const prev = undoStack.pop(); if(prev){ currentRoute = cloneRoutes(prev); draw(); }
     });
@@ -2097,7 +2133,25 @@
         if(route.length){
           route.forEach((r,i)=>{
             globalIdx++;
-            rows.push(`<tr><td><span class="order-num">${globalIdx}</span></td><td>${r.tipo||''}</td><td>${r.nombre||''}</td><td class="right">${r.monto?fmtMoney(r.monto):''}</td><td>${r.servicio||''}${r.priority? ' <span class="priority">★</span>':''}</td><td><button class="chip" data-route="${rIdx}" data-i="${i}" data-act="rm">Quitar</button></td></tr>`);
+            const canMoveUp = i > 0;
+            const canMoveDown = i < route.length - 1;
+            const priorityMark = r.priority ? ' <span class="priority">★</span>' : '';
+            rows.push([
+              '<tr>',
+                `<td><span class="order-num">${globalIdx}</span></td>`,
+                `<td>${r.tipo||''}</td>`,
+                `<td>${r.nombre||''}</td>`,
+                `<td class="right">${r.monto?fmtMoney(r.monto):''}</td>`,
+                `<td>${r.servicio||''}${priorityMark}</td>`,
+                '<td>',
+                  '<div class="route-actions">',
+                    `<button type="button" class="chip icon" data-route="${rIdx}" data-i="${i}" data-act="up"${canMoveUp ? '' : ' disabled'} title="Subir">↑</button>`,
+                    `<button type="button" class="chip icon" data-route="${rIdx}" data-i="${i}" data-act="down"${canMoveDown ? '' : ' disabled'} title="Bajar">↓</button>`,
+                    `<button type="button" class="chip" data-route="${rIdx}" data-i="${i}" data-act="rm">Quitar</button>`,
+                  '</div>',
+                '</td>',
+              '</tr>'
+            ].join(''));
           });
         }else if(multipleRoutes){
           rows.push(`<tr><td colspan="6" style="color:var(--muted-text);font-style:italic;">Sin paradas asignadas</td></tr>`);
@@ -2112,6 +2166,23 @@
         const pointIdx = parseInt(b.dataset.i, 10);
         removeAt(routeIdx, pointIdx);
       });
+      [...rutaTbody.querySelectorAll('button[data-act="up"]')].forEach(b=>{
+        b.addEventListener('click', ()=>{
+          if(b.disabled) return;
+          const routeIdx = parseInt(b.dataset.route, 10);
+          const pointIdx = parseInt(b.dataset.i, 10);
+          movePoint({ route: routeIdx, index: pointIdx }, { route: routeIdx, index: pointIdx - 1 });
+        });
+      });
+      [...rutaTbody.querySelectorAll('button[data-act="down"]')].forEach(b=>{
+        b.addEventListener('click', ()=>{
+          if(b.disabled) return;
+          const routeIdx = parseInt(b.dataset.route, 10);
+          const pointIdx = parseInt(b.dataset.i, 10);
+          movePoint({ route: routeIdx, index: pointIdx }, { route: routeIdx, index: pointIdx + 1 });
+        });
+      });
+      updateSummary();
 
       // mapa
       waitForLeaflet().then(()=>{
