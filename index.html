@@ -531,6 +531,10 @@
               <input id="nCamiones" type="number" min="1" value="1" style="all:unset;border:1px solid var(--line-clr);padding:8px 10px;border-radius:10px;width:70px;font-weight:800" />
             </span>
             <span class="pill">
+              <label for="selCamion" style="font-weight:800;color:var(--muted-text)">Vehículo</label>
+              <select id="selCamion" style="all:unset;border:1px solid var(--line-clr);padding:8px 10px;border-radius:10px;min-width:200px;font-weight:800"><option value="">—</option></select>
+            </span>
+            <span class="pill">
               <label><input type="checkbox" id="prioAbast" checked /> Abastecimientos primero</label>
             </span>
             <span class="pill">
@@ -640,7 +644,7 @@
             </div>
             <div class="card-body" style="overflow:auto; max-height:260px">
               <table class="table" style="border:0">
-                <thead><tr><th>Fecha</th><th>Nombre</th><th>Paradas</th><th>Tiempo</th><th>Monto pico</th><th>Estado</th><th>Acciones</th></tr></thead>
+                <thead><tr><th>Fecha</th><th>Nombre</th><th>Paradas</th><th>Vehículo</th><th>Tiempo</th><th>Monto pico</th><th>Estado</th><th>Acciones</th></tr></thead>
                 <tbody id="histTbody"></tbody>
               </table>
             </div>
@@ -1207,6 +1211,7 @@
   const cfg = Object.assign({
     maxMonto: 200000000, // $
     maxMin:   480,       // minutos
+    maxKg:    1500,      // kg
     vel:      40,        // km/h
     stopSuc:  5,         // min
     stopATM:  15,        // min
@@ -1857,6 +1862,7 @@
     const mapSk = document.getElementById('routeMapSkeleton');
     const mapEl = document.getElementById('routeMap');
     const selOrigen = document.getElementById('selOrigen');
+    const selCamion = document.getElementById('selCamion');
     const prioAbast = document.getElementById('prioAbast');
     const prioDescAlta = document.getElementById('prioDescargaAlta');
     const nCamionesInput = document.getElementById('nCamiones');
@@ -1868,6 +1874,115 @@
     const ignoredRegistry = new Map();
     let lastMapIgnoredCount = 0;
     const lastSummary = { distKm: null };
+
+    function camionLabel(id){
+      if(id === null || id === undefined) return '';
+      const strId = String(id).trim();
+      if(!strId) return '';
+      const cam = State.cam.find(c => String(c.id) === strId);
+      if(!cam){
+        return strId;
+      }
+      const parts = [String(cam.id)];
+      if(cam.modelo){ parts.push(String(cam.modelo)); }
+      return parts.join(' — ');
+    }
+
+    function ensureCamionOption(id, label){
+      if(!selCamion) return;
+      const strId = String(id ?? '').trim();
+      if(!strId) return;
+      const exists = Array.from(selCamion.options || []).some(opt => opt.value === strId);
+      if(exists) return;
+      const opt = document.createElement('option');
+      opt.value = strId;
+      const lbl = label && String(label).trim() ? String(label).trim() : camionLabel(strId);
+      opt.textContent = lbl || strId;
+      opt.dataset.extra = '1';
+      selCamion.appendChild(opt);
+    }
+
+    function populateCamionSelect(){
+      if(!selCamion) return;
+      const prev = selCamion.value;
+      const prevLabel = selCamion.options && selCamion.selectedIndex >= 0
+        ? selCamion.options[selCamion.selectedIndex]?.textContent || ''
+        : '';
+      selCamion.innerHTML = '';
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = '—';
+      selCamion.appendChild(placeholder);
+      const camiones = State.cam.filter(cam => cam && cam.id);
+      camiones.forEach(cam => {
+        const opt = document.createElement('option');
+        const id = String(cam.id);
+        opt.value = id;
+        opt.textContent = camionLabel(id);
+        selCamion.appendChild(opt);
+      });
+      let applied = false;
+      if(prev && camiones.some(cam => String(cam.id) === prev)){
+        selCamion.value = prev;
+        applied = true;
+      }else if(camiones.length === 1){
+        selCamion.value = String(camiones[0].id);
+        applied = true;
+      }else{
+        selCamion.value = '';
+      }
+      if(!applied && prev){
+        ensureCamionOption(prev, prevLabel);
+        selCamion.value = prev;
+      }
+    }
+
+    function configureCfgWithTruck(camion){
+      if(!camion) return;
+      let changed = false;
+      const maxMontoInput = document.getElementById('cfgMaxMonto');
+      const velInput = document.getElementById('cfgVel');
+      const capMonto = parseNumber(camion.capMonto);
+      if(Number.isFinite(capMonto) && capMonto > 0){
+        if(cfg.maxMonto !== capMonto){
+          cfg.maxMonto = capMonto;
+          changed = true;
+        }
+        if(maxMontoInput){ maxMontoInput.value = String(capMonto); }
+      }
+      const capKg = parseNumber(camion.capKg);
+      if(Number.isFinite(capKg) && capKg > 0){
+        if(cfg.maxKg !== capKg){
+          cfg.maxKg = capKg;
+          changed = true;
+        }
+      }
+      const velMax = parseNumber(camion.velMax);
+      if(Number.isFinite(velMax) && velMax > 0){
+        if(cfg.vel !== velMax){
+          cfg.vel = velMax;
+          changed = true;
+        }
+        if(velInput){ velInput.value = String(velMax); }
+      }
+      if(changed){
+        save(DB.cfg, cfg);
+        updateSummary();
+      }
+    }
+
+    populateCamionSelect();
+    document.addEventListener('data:updated', (ev)=>{
+      const scope = ev?.detail?.scope;
+      if(!scope || scope === 'camiones'){
+        const prev = selCamion?.value || '';
+        populateCamionSelect();
+        const current = selCamion?.value || '';
+        if(selCamion && current && (current === prev || !prev)){
+          selCamion.dispatchEvent(new Event('change'));
+        }
+      }
+    });
 
     function clearIgnoredScope(scope){
       for(const [key, entry] of [...ignoredRegistry.entries()]){
@@ -2378,6 +2493,15 @@
     }
 
     selOrigen?.addEventListener('change', draw);
+    selCamion?.addEventListener('change', ()=>{
+      const camionId = (selCamion.value || '').trim();
+      if(!camionId) return;
+      const camion = State.cam.find(c => String(c.id) === camionId);
+      if(camion){ configureCfgWithTruck(camion); }
+    });
+    if(selCamion && selCamion.value){
+      selCamion.dispatchEvent(new Event('change'));
+    }
 
     function labelForRoute(idx){
       return `Camión ${idx+1}`;
@@ -2489,6 +2613,13 @@
       const origen = State.cab.find(c=>c.codigo===selOrigen.value);
       if(!origen){ ctl.fail('Seleccioná una cabecera origen'); return; }
 
+      const camionId = (selCamion?.value || '').trim();
+      if(!camionId){ ctl.fail('Seleccioná un camión/vehículo'); return; }
+      const camion = State.cam.find(c => String(c.id) === camionId);
+      if(!camion){ ctl.fail('El camión seleccionado no está disponible. Actualizá el listado de vehículos.'); return; }
+      configureCfgWithTruck(camion);
+      const camionEtiqueta = camionLabel(camionId) || (camion.modelo ? `${camionId} — ${camion.modelo}` : camionId);
+
       // Construir lista de puntos con prioridad
       const pts = flattenRoutes().map(p=> ({...p}));
       if(pts.length===0){ ctl.fail('No hay paradas'); return; }
@@ -2548,6 +2679,34 @@
         }
       }
 
+      const maxKgPermitido = Number(cfg.maxKg);
+      if(isFinite(maxKgPermitido) && maxKgPermitido > 0){
+        const violacionKg = optimizadas.findIndex(route =>{
+          let carga = 0;
+          let pico = 0;
+          for(const p of route){
+            const peso = parseNumber(p.peso);
+            if(Number.isFinite(peso)){
+              if(peso >= 0){
+                carga += peso;
+              }else{
+                carga = Math.max(0, carga + peso);
+              }
+            }
+            pico = Math.max(pico, carga);
+            if(pico > maxKgPermitido + 1e-6){
+              return true;
+            }
+          }
+          return false;
+        });
+        if(violacionKg >= 0){
+          undoStack.pop();
+          ctl.fail(`La ruta del camión ${violacionKg+1} supera la capacidad de carga (${maxKgPermitido.toLocaleString('es-AR')} kg). Ajustá la ruta o elegí otro vehículo.`);
+          return;
+        }
+      }
+
       const maxMinPermitido = Number(cfg.maxMin);
       if(isFinite(maxMinPermitido) && maxMinPermitido > 0){
         const origenLat = parseNumber(origen.lat);
@@ -2579,7 +2738,7 @@
       currentRoute = optimizadas.length? optimizadas : [[]];
       draw();
       ctl.finish('Optimización completada');
-      addRecent();
+      addRecent({ camionId, camionModelo: camion?.modelo || null, camionEtiqueta });
     }
 
     function splitIntoRoutes(pts, camiones){
@@ -2724,13 +2883,18 @@
       const rutas = cloneRoutes().filter(route => Array.isArray(route) && route.length > 0);
       const puntos = flattenRoutes(rutas).map(p => ({...p}));
       const distKm = Number.isFinite(lastSummary.distKm) ? Math.round(lastSummary.distKm * 10) / 10 : null;
+      const camionIdSel = (selCamion?.value || '').trim();
+      const camionSel = camionIdSel ? State.cam.find(c => String(c.id) === camionIdSel) : null;
+      const camionEtiquetaSel = camionIdSel ? (camionSel ? camionLabel(camionSel.id) : camionIdSel) : '';
       const rec = {
         id: uuid(), fecha: new Date().toISOString().slice(0,10), nombre,
         origen: origenCodigo,
         rutas,
         puntos,
         distKm,
-        camionId: null,
+        camionId: camionIdSel || null,
+        camionModelo: camionSel?.modelo || null,
+        camionEtiqueta: camionEtiquetaSel || null,
         camiones: parseInt(nCamionesInput?.value, 10)||1,
         tiempo: document.getElementById('sumTiempo').textContent, montoPico: document.getElementById('sumMonto').textContent,
         aprobado: true
@@ -2760,7 +2924,22 @@
       const fallbackTiempo = (sumTiempoEl?.textContent || '').trim();
       const tiempo = tiempoRaw && tiempoRaw !== '—' ? tiempoRaw : (fallbackTiempo && fallbackTiempo !== '—' ? fallbackTiempo : 'N/D');
       const vehiculoRaw = entry.camionId ?? entry.camionAsignado ?? entry.vehiculo ?? entry.camion ?? null;
-      const vehiculo = vehiculoRaw === null || vehiculoRaw === undefined || String(vehiculoRaw).trim() === '' ? 'N/D' : String(vehiculoRaw).trim();
+      const currentSel = selCamion?.value || '';
+      let vehiculo = 'N/D';
+      if(vehiculoRaw !== null && vehiculoRaw !== undefined && String(vehiculoRaw).trim() !== ''){
+        const formatted = camionLabel(vehiculoRaw);
+        vehiculo = formatted && formatted.trim() ? formatted.trim() : String(vehiculoRaw).trim();
+      }else if(entry.camionEtiqueta && String(entry.camionEtiqueta).trim()){
+        vehiculo = String(entry.camionEtiqueta).trim();
+      }else if(entry.camionModelo && String(entry.camionModelo).trim()){
+        vehiculo = String(entry.camionModelo).trim();
+      }else if(currentSel && String(currentSel).trim()){
+        const formatted = camionLabel(currentSel);
+        vehiculo = formatted && formatted.trim() ? formatted.trim() : String(currentSel).trim();
+      }
+      if(!vehiculo || !vehiculo.trim()){
+        vehiculo = 'N/D';
+      }
       const distSource = Number.isFinite(entry.distKm) ? entry.distKm : (Number.isFinite(lastSummary.distKm) ? lastSummary.distKm : null);
       let km = 'N/D';
       if(Number.isFinite(distSource)){
@@ -2810,8 +2989,20 @@
       tbody.innerHTML = State.hist.map(h=>{
         const rutas = Array.isArray(h.rutas)? h.rutas : [h.puntos||[]];
         const totalPts = rutas.reduce((acc, route)=> acc + (Array.isArray(route)? route.length : 0), 0);
+        const vehiculoLabel = (()=>{
+          const etiqueta = typeof h.camionEtiqueta === 'string' ? h.camionEtiqueta.trim() : '';
+          if(etiqueta) return etiqueta;
+          const idRaw = h.camionId ?? h.camionAsignado ?? h.vehiculo ?? h.camion ?? '';
+          const idStr = typeof idRaw === 'string' ? idRaw.trim() : String(idRaw||'').trim();
+          if(idStr){
+            const formatted = camionLabel(idStr);
+            return formatted && formatted.trim() ? formatted.trim() : idStr;
+          }
+          const modelo = typeof h.camionModelo === 'string' ? h.camionModelo.trim() : '';
+          return modelo || 'N/D';
+        })();
         return `
-        <tr data-id="${h.id}"><td>${h.fecha}</td><td>${h.nombre}</td><td>${totalPts}</td><td>${h.tiempo}</td><td>${h.montoPico}</td><td>${h.aprobado?'Aprobado':'Borrador'}</td>
+        <tr data-id="${h.id}"><td>${h.fecha||''}</td><td>${h.nombre||''}</td><td>${totalPts}</td><td>${vehiculoLabel}</td><td>${h.tiempo||'N/D'}</td><td>${h.montoPico||'—'}</td><td>${h.aprobado?'Aprobado':'Borrador'}</td>
         <td><button class="chip" data-act="cargar">Cargar</button> <button class="chip" data-act="del">Eliminar</button></td></tr>
       `;}).join('');
       [...tbody.querySelectorAll('button[data-act="cargar"]')].forEach(b=> b.addEventListener('click', ()=>{
@@ -2822,6 +3013,19 @@
         currentRoute = rutas.map(route => Array.isArray(route)? route.map(p => ({...p})) : []);
         if(!currentRoute.length){ currentRoute = [[]]; }
         if(nCamionesInput){ nCamionesInput.value = h.camiones || Math.max(1, rutas.length); }
+        if(selCamion){
+          populateCamionSelect();
+          const fallbackLabel = (typeof h.camionEtiqueta === 'string' && h.camionEtiqueta.trim())
+            ? h.camionEtiqueta.trim()
+            : (typeof h.camionModelo === 'string' ? h.camionModelo.trim() : '');
+          if(h.camionId){
+            ensureCamionOption(h.camionId, fallbackLabel || h.camionId);
+            selCamion.value = h.camionId;
+          }else{
+            selCamion.value = '';
+          }
+          selCamion.dispatchEvent(new Event('change'));
+        }
         draw(); showToast('Ruta cargada desde historial');
       }));
       [...tbody.querySelectorAll('button[data-act="del"]')].forEach(b=> b.addEventListener('click', ()=>{
