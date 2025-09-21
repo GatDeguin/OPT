@@ -1847,6 +1847,7 @@
   const Route = (function(){
     let routeMap, routeMarkers = [], routeLines = [];
     let currentRoute = [[]]; // array de rutas (cada una lista de puntos {id, tipo, nombre, lat, lng, monto, servicio, priority})
+    const UNDO_LIMIT = 50;
     let undoStack = [];
 
     const ptsTbody = document.getElementById('ptsTbody');
@@ -1918,6 +1919,75 @@
 
     function cloneRoutes(routes = currentRoute){
       return routes.map(route => route.map(p => ({...p})));
+    }
+    function pushUndoEntry(entry){
+      if(!entry) return;
+      undoStack.push(entry);
+      if(undoStack.length > UNDO_LIMIT){
+        undoStack.shift();
+      }
+    }
+    function createSnapshot(){
+      return { type: 'snapshot', state: cloneRoutes() };
+    }
+    function clonePoint(point){
+      return point ? ({ ...point }) : null;
+    }
+    function ensureRouteIndex(idx){
+      if(!Number.isInteger(idx) || idx < 0) return;
+      ensureBaseRoute();
+      while(currentRoute.length <= idx){
+        currentRoute.push([]);
+      }
+    }
+    function applyUndo(entry){
+      if(!entry) return false;
+      switch(entry.type){
+        case 'snapshot':
+          currentRoute = cloneRoutes(entry.state);
+          return true;
+        case 'remove-point':{
+          const route = currentRoute[entry.routeIdx];
+          if(!route) return false;
+          if(entry.index < 0 || entry.index >= route.length) return false;
+          route.splice(entry.index, 1);
+          return true;
+        }
+        case 'insert-point':{
+          if(!entry.point) return false;
+          ensureRouteIndex(entry.routeIdx);
+          const route = currentRoute[entry.routeIdx];
+          if(!route) return false;
+          const idx = Math.max(0, Math.min(entry.index, route.length));
+          const pointCopy = clonePoint(entry.point);
+          if(!pointCopy) return false;
+          route.splice(idx, 0, pointCopy);
+          return true;
+        }
+        case 'toggle-priority':{
+          const route = currentRoute[entry.routeIdx];
+          if(!route) return false;
+          const point = route[entry.index];
+          if(!point) return false;
+          route[entry.index] = { ...point, priority: !point.priority };
+          return true;
+        }
+        case 'move-point':{
+          if(!entry.to || !entry.from) return false;
+          const toRoute = currentRoute[entry.to.route];
+          const fromRoute = currentRoute[entry.from.route];
+          if(!toRoute || !fromRoute) return false;
+          if(entry.to.index < 0 || entry.to.index >= toRoute.length) return false;
+          const point = toRoute[entry.to.index];
+          if(!point) return false;
+          toRoute.splice(entry.to.index, 1);
+          const insertIndex = Math.max(0, Math.min(entry.from.index, fromRoute.length));
+          fromRoute.splice(insertIndex, 0, point);
+          return true;
+        }
+        default:
+          return false;
+      }
     }
     function flattenRoutes(routes = currentRoute){
       return routes.reduce((acc, route)=> acc.concat(route), []);
@@ -2057,7 +2127,6 @@
 
     function addPointToRoute(p, priority=false){
       ensureBaseRoute();
-      undoStack.push(cloneRoutes());
       let target = currentRoute.findIndex(route => route.length===0);
       if(target<0){
         let bestScore = Infinity;
@@ -2068,14 +2137,30 @@
         });
         if(target<0) target = 0;
       }
-      currentRoute[target].push({ ...p, priority: !!priority });
+      ensureRouteIndex(target);
+      const route = currentRoute[target];
+      if(!route) return;
+      const insertionIndex = route.length;
+      pushUndoEntry({ type: 'remove-point', routeIdx: target, index: insertionIndex });
+      route.push({ ...p, priority: !!priority });
       draw();
     }
     function removeAt(routeIdx, pointIdx){
       if(routeIdx<0 || routeIdx>=currentRoute.length) return;
-      undoStack.push(cloneRoutes());
-      currentRoute[routeIdx].splice(pointIdx,1);
-      if(flattenRoutes().length===0){ currentRoute = [[]]; }
+      const route = currentRoute[routeIdx];
+      if(!route) return;
+      if(pointIdx<0 || pointIdx>=route.length) return;
+      const point = route[pointIdx];
+      if(!point) return;
+      const totalPointsBefore = flattenRoutes().length;
+      if(totalPointsBefore <= 0) return;
+      if(totalPointsBefore === 1 && currentRoute.length > 1){
+        pushUndoEntry(createSnapshot());
+      }else{
+        pushUndoEntry({ type: 'insert-point', routeIdx, index: pointIdx, point: clonePoint(point) });
+      }
+      route.splice(pointIdx,1);
+      if(totalPointsBefore === 1){ currentRoute = [[]]; }
       draw();
     }
     function movePoint(from, to){
@@ -2096,8 +2181,7 @@
       if(fromRouteIdx === toRouteIdx && fromIdx === toIdx) return;
       const point = fromRoute[fromIdx];
       if(!point) return;
-      undoStack.push(cloneRoutes());
-      fromRoute.splice(fromIdx, 1);
+      const movingPoint = fromRoute.splice(fromIdx, 1)[0];
       let targetIndex = toIdx;
       const maxIndex = toRoute.length;
       if(fromRouteIdx === toRouteIdx){
@@ -2109,7 +2193,12 @@
       }else{
         targetIndex = Math.max(0, Math.min(targetIndex, maxIndex));
       }
-      toRoute.splice(targetIndex, 0, point);
+      pushUndoEntry({
+        type: 'move-point',
+        from: { route: fromRouteIdx, index: fromIdx },
+        to: { route: toRouteIdx, index: targetIndex }
+      });
+      toRoute.splice(targetIndex, 0, movingPoint);
       draw();
     }
     function togglePriority(routeIdx, pointIdx){
@@ -2119,16 +2208,19 @@
       if(pointIdx<0 || pointIdx>=route.length) return;
       const point = route[pointIdx];
       if(!point) return;
-      undoStack.push(cloneRoutes());
+      pushUndoEntry({ type: 'toggle-priority', routeIdx, index: pointIdx });
       route[pointIdx] = { ...point, priority: !point.priority };
       draw();
     }
     document.getElementById('btnDeshacer')?.addEventListener('click', ()=>{
-      const prev = undoStack.pop(); if(prev){ currentRoute = cloneRoutes(prev); draw(); }
+      const action = undoStack.pop();
+      if(action && applyUndo(action)){
+        draw();
+      }
     });
     document.getElementById('btnLimpiarRuta')?.addEventListener('click', ()=>{
       if(!confirm('¿Eliminar todas las paradas?')) return;
-      undoStack.push(cloneRoutes());
+      pushUndoEntry(createSnapshot());
       currentRoute = [[]];
       draw();
     });
@@ -2401,7 +2493,7 @@
       const pts = flattenRoutes().map(p=> ({...p}));
       if(pts.length===0){ ctl.fail('No hay paradas'); return; }
       const camiones = parseInt(nCamionesInput?.value, 10) || 1;
-      undoStack.push(cloneRoutes());
+      pushUndoEntry(createSnapshot());
       // Aplica prioridades: manual ★, abastecimientos primero, descargas altas antes
       pts.sort((a,b)=>{
         const pa = (a.priority? -1000:0) + (prioAbast.checked && /^abastec/i.test(a.servicio||'') ? -100 : 0) + (prioDescAlta.checked ? -Math.sign(-(a.monto||0)) * Math.abs(a.monto||0)/1e6 : 0);
