@@ -195,6 +195,9 @@
     .about li{margin:8px 0}
     .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:linear-gradient(180deg, rgba(0,0,0,.02), rgba(0,0,0,.04));border:1px solid var(--line-clr);color:var(--text);font-weight:800;letter-spacing:.2px;cursor:pointer;transition:transform .15s ease, box-shadow .25s ease, background .25s ease}
     .chip.icon{padding:4px 8px;font-size:12px;line-height:1;min-width:0;justify-content:center}
+    .chip.icon.prio-toggle{font-size:14px;min-width:32px}
+    .chip.icon.prio-toggle.active{color:#d97706;border-color:rgba(217,119,6,.45);box-shadow:inset 0 0 0 1px rgba(217,119,6,.35);background:rgba(217,119,6,.08)}
+    html[data-theme="dark"] .chip.icon.prio-toggle.active{color:#facc15;border-color:rgba(250,204,21,.35);box-shadow:inset 0 0 0 1px rgba(250,204,21,.35);background:rgba(250,204,21,.15)}
     button.chip:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
     html[data-theme="dark"] .chip{background:linear-gradient(180deg,#0c1015,#0a0e13)}
     .chip:hover{transform:translateY(-1px)}
@@ -619,7 +622,7 @@
             </div>
             <div class="card-body" style="overflow:auto; max-height:320px">
               <table class="table" style="border:0">
-                <thead><tr><th>#</th><th>Tipo</th><th>Nombre</th><th class="right">Monto</th><th>Servicio</th><th>Acciones</th></tr></thead>
+                <thead><tr><th>#</th><th>Tipo</th><th>Nombre</th><th class="right">Monto</th><th>Servicio</th><th>Prioridad</th><th>Acciones</th></tr></thead>
                 <tbody id="rutaTbody"></tbody>
               </table>
             </div>
@@ -2109,6 +2112,17 @@
       toRoute.splice(targetIndex, 0, point);
       draw();
     }
+    function togglePriority(routeIdx, pointIdx){
+      if(routeIdx<0 || routeIdx>=currentRoute.length) return;
+      const route = currentRoute[routeIdx];
+      if(!route) return;
+      if(pointIdx<0 || pointIdx>=route.length) return;
+      const point = route[pointIdx];
+      if(!point) return;
+      undoStack.push(cloneRoutes());
+      route[pointIdx] = { ...point, priority: !point.priority };
+      draw();
+    }
     document.getElementById('btnDeshacer')?.addEventListener('click', ()=>{
       const prev = undoStack.pop(); if(prev){ currentRoute = cloneRoutes(prev); draw(); }
     });
@@ -2134,7 +2148,7 @@
       currentRoute.forEach((route, rIdx)=>{
         const label = `Camión ${rIdx+1}`;
         if(multipleRoutes){
-          rows.push(`<tr class="route-header"><td colspan="6"><strong>${label}</strong>${route.length? '': ' — sin paradas'}</td></tr>`);
+          rows.push(`<tr class="route-header"><td colspan="7"><strong>${label}</strong>${route.length? '': ' — sin paradas'}</td></tr>`);
         }
         if(route.length){
           route.forEach((r,i)=>{
@@ -2142,6 +2156,7 @@
             const canMoveUp = i > 0;
             const canMoveDown = i < route.length - 1;
             const priorityMark = r.priority ? ' <span class="priority">★</span>' : '';
+            const priorityButton = `<button type="button" class="chip icon prio-toggle${r.priority ? ' active' : ''}" data-route="${rIdx}" data-i="${i}" data-act="prio" aria-pressed="${r.priority ? 'true' : 'false'}" title="${r.priority ? 'Quitar prioridad manual' : 'Priorizar parada'}">${r.priority ? '★' : '☆'}</button>`;
             rows.push([
               '<tr>',
                 `<td><span class="order-num">${globalIdx}</span></td>`,
@@ -2149,6 +2164,7 @@
                 `<td>${r.nombre||''}</td>`,
                 `<td class="right">${r.monto?fmtMoney(r.monto):''}</td>`,
                 `<td>${r.servicio||''}${priorityMark}</td>`,
+                `<td>${priorityButton}</td>`,
                 '<td>',
                   '<div class="route-actions">',
                     `<button type="button" class="chip icon" data-route="${rIdx}" data-i="${i}" data-act="up"${canMoveUp ? '' : ' disabled'} title="Subir">↑</button>`,
@@ -2160,11 +2176,11 @@
             ].join(''));
           });
         }else if(multipleRoutes){
-          rows.push(`<tr><td colspan="6" style="color:var(--muted-text);font-style:italic;">Sin paradas asignadas</td></tr>`);
+          rows.push(`<tr><td colspan="7" style="color:var(--muted-text);font-style:italic;">Sin paradas asignadas</td></tr>`);
         }
       });
       if(!rows.length){
-        rows.push(`<tr><td colspan="6" style="color:var(--muted-text);font-style:italic;">Sin paradas</td></tr>`);
+        rows.push(`<tr><td colspan="7" style="color:var(--muted-text);font-style:italic;">Sin paradas</td></tr>`);
       }
       rutaTbody.innerHTML = rows.join('');
       [...rutaTbody.querySelectorAll('button[data-act="rm"]')].forEach(b=>{
@@ -2186,6 +2202,13 @@
           const routeIdx = parseInt(b.dataset.route, 10);
           const pointIdx = parseInt(b.dataset.i, 10);
           movePoint({ route: routeIdx, index: pointIdx }, { route: routeIdx, index: pointIdx + 1 });
+        });
+      });
+      [...rutaTbody.querySelectorAll('button[data-act="prio"]')].forEach(b=>{
+        b.addEventListener('click', ()=>{
+          const routeIdx = parseInt(b.dataset.route, 10);
+          const pointIdx = parseInt(b.dataset.i, 10);
+          togglePriority(routeIdx, pointIdx);
         });
       });
       updateSummary();
