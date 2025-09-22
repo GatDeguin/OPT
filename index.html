@@ -1323,6 +1323,41 @@
     }
   }
 
+  const duplicateTracker = new Map();
+  function warnDuplicates(scope, count){
+    const prev = duplicateTracker.get(scope) || 0;
+    if(count > 0){
+      if(prev !== count){
+        duplicateTracker.set(scope, count);
+        const msg = `${count} duplicado${count===1?'':'s'} descartado${count===1?'':'s'} en ${scope}`;
+        if(typeof showToast === 'function'){
+          showToast(msg);
+        }else{
+          console.warn(msg);
+        }
+      }
+    }else if(prev !== 0){
+      duplicateTracker.set(scope, 0);
+    }
+  }
+
+  function dedupeByKey(arr, keySelector){
+    const map = new Map();
+    arr.forEach((item, idx)=>{
+      const rawKey = keySelector ? keySelector(item, idx) : null;
+      let key = rawKey;
+      if(key === undefined || key === null){
+        key = Symbol(`idx_${idx}`);
+      }else{
+        const str = String(key).trim();
+        key = str ? str : Symbol(`idx_${idx}`);
+      }
+      map.set(key, { rec: item, idx });
+    });
+    const rows = Array.from(map.values()).sort((a,b)=>a.idx-b.idx);
+    return { rows, duplicates: arr.length - map.size };
+  }
+
   // ========= Sucursales =========
   (function(){
     const tbody = document.getElementById('sucTbody');
@@ -1332,13 +1367,14 @@
 
     function render(){
       const q = (qEl.value||'').toLowerCase();
-      const arr = State.suc.filter(r=>{
-        const cod = r.codigo == null ? '' : String(r.codigo);
-        const nom = r.nombre == null ? '' : String(r.nombre);
+      const { rows: deduped, duplicates } = dedupeByKey(State.suc, r => r.codigo);
+      warnDuplicates('sucursales', duplicates);
+      const rows = deduped.filter(({rec})=>{
+        const cod = rec.codigo == null ? '' : String(rec.codigo);
+        const nom = rec.nombre == null ? '' : String(rec.nombre);
         return !q || cod.toLowerCase().includes(q) || nom.toLowerCase().includes(q);
       });
-      cntEl.textContent = arr.length;
-      const rows = arr.map(rec => ({ rec, idx: State.suc.indexOf(rec) })).filter(row => row.idx >= 0);
+      cntEl.textContent = rows.length;
       tbody.innerHTML = rows.map(({rec, idx}) => {
         const codigo = sanitizeHTML(rec.codigo || '');
         const nombre = sanitizeHTML(rec.nombre || '');
@@ -1506,13 +1542,13 @@
 
     function render(){
       const q = (qEl.value||'').toLowerCase();
-      const rows = State.atms
-        .map((rec, idx)=>({ rec, idx }))
-        .filter(({rec})=>{
-          const codigo = rec.codigo == null ? '' : String(rec.codigo);
-          const nombre = rec.nombre == null ? '' : String(rec.nombre);
-          return !q || codigo.toLowerCase().includes(q) || nombre.toLowerCase().includes(q);
-        });
+      const { rows: deduped, duplicates } = dedupeByKey(State.atms, r => r.codigo);
+      warnDuplicates('ATMs', duplicates);
+      const rows = deduped.filter(({rec})=>{
+        const codigo = rec.codigo == null ? '' : String(rec.codigo);
+        const nombre = rec.nombre == null ? '' : String(rec.nombre);
+        return !q || codigo.toLowerCase().includes(q) || nombre.toLowerCase().includes(q);
+      });
       cntEl.textContent = rows.length;
       tbody.innerHTML = rows.map(({rec, idx}) => {
         const codigo = sanitizeHTML(rec.codigo || '');
@@ -1725,9 +1761,10 @@
 
     function render(){
       const q = (qEl.value||'').toLowerCase();
-      const arr = State.cab.filter(r => !q || Object.values(r).some(v => (''+v).toLowerCase().includes(q)));
-      cntEl.textContent = arr.length;
-      const rows = arr.map(rec => ({ rec, idx: State.cab.indexOf(rec) })).filter(row => row.idx >= 0);
+      const { rows: deduped, duplicates } = dedupeByKey(State.cab, r => r.codigo);
+      warnDuplicates('cabeceras', duplicates);
+      const rows = deduped.filter(({rec}) => !q || Object.values(rec).some(v => (''+v).toLowerCase().includes(q)));
+      cntEl.textContent = rows.length;
       tbody.innerHTML = rows.map(({rec, idx}) => {
         const codigo = sanitizeHTML(rec.codigo || '');
         const nombre = sanitizeHTML(rec.nombre || '');
@@ -1772,7 +1809,9 @@
       });
       if(selOrigen){
         const prev = selOrigen.value;
-        const validCab = State.cab.filter(c => Number.isFinite(parseNumber(c.lat)) && Number.isFinite(parseNumber(c.lng)));
+        const validCab = deduped
+          .map(({rec}) => rec)
+          .filter(c => Number.isFinite(parseNumber(c.lat)) && Number.isFinite(parseNumber(c.lng)));
         selOrigen.innerHTML = '<option value="">—</option>' + validCab.map(c => `<option value="${c.codigo}">${c.codigo} — ${c.nombre}</option>`).join('');
         if(validCab.some(c => c.codigo === prev)){
           selOrigen.value = prev;
@@ -1919,13 +1958,13 @@
     const tbody = document.getElementById('otrosTbody'); const cntEl = document.getElementById('otrosCount'); const qEl = document.getElementById('otrosQ');
     function render(){
       const q=(qEl.value||'').toLowerCase();
-      const rows = State.otros
-        .map((rec, idx)=>({ rec, idx }))
-        .filter(({rec})=>{
-          const cod = rec.codigo == null ? '' : String(rec.codigo);
-          const nom = rec.nombre == null ? '' : String(rec.nombre);
-          return !q || cod.toLowerCase().includes(q) || nom.toLowerCase().includes(q);
-        });
+      const { rows: deduped, duplicates } = dedupeByKey(State.otros, r => r.codigo);
+      warnDuplicates('otros bancos', duplicates);
+      const rows = deduped.filter(({rec})=>{
+        const cod = rec.codigo == null ? '' : String(rec.codigo);
+        const nom = rec.nombre == null ? '' : String(rec.nombre);
+        return !q || cod.toLowerCase().includes(q) || nom.toLowerCase().includes(q);
+      });
       cntEl.textContent = rows.length;
       tbody.innerHTML = rows.map(({rec, idx}) => {
         const codigo = sanitizeHTML(rec.codigo || '');
@@ -2039,9 +2078,9 @@
     const tbody = document.getElementById('choTbody'); const cntEl = document.getElementById('choCount'); const qEl = document.getElementById('choQ');
     function render(){
       const q=(qEl.value||'').toLowerCase();
-      const rows = State.cho
-        .map((rec, idx)=>({ rec, idx }))
-        .filter(({rec})=> !q || Object.values(rec).some(v => String(v ?? '').toLowerCase().includes(q)));
+      const { rows: deduped, duplicates } = dedupeByKey(State.cho, r => r.legajo);
+      warnDuplicates('choferes', duplicates);
+      const rows = deduped.filter(({rec})=> !q || Object.values(rec).some(v => String(v ?? '').toLowerCase().includes(q)));
       cntEl.textContent = rows.length;
       tbody.innerHTML = rows.map(({rec, idx}) => {
         const legajo = sanitizeHTML(rec.legajo || '');
@@ -2142,12 +2181,12 @@
     const tbody = document.getElementById('camTbody'); const cntEl = document.getElementById('camCount'); const qEl = document.getElementById('camQ');
     function render(){
       const q=(qEl.value||'').toLowerCase();
-      const rows = State.cam
-        .map((rec, idx)=>({ rec, idx }))
-        .filter(({rec})=>{
-          if(!q) return true;
-          return Object.values(rec).some(v => String(v ?? '').toLowerCase().includes(q));
-        });
+      const { rows: deduped, duplicates } = dedupeByKey(State.cam, r => r.id);
+      warnDuplicates('camiones', duplicates);
+      const rows = deduped.filter(({rec})=>{
+        if(!q) return true;
+        return Object.values(rec).some(v => String(v ?? '').toLowerCase().includes(q));
+      });
       cntEl.textContent = rows.length;
       tbody.innerHTML = rows.map(({rec, idx}) => {
         const id = sanitizeHTML(rec.id || '');
