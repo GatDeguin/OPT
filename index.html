@@ -241,6 +241,13 @@
     html[data-theme="dark"] .kv{background:linear-gradient(180deg,#263744,#21323d)}
     .kv small{color:var(--muted-text);display:block;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
     .kv div{margin-top:6px;font-weight:800;font-size:16px}
+    .kv.warning{background:linear-gradient(180deg,rgba(250,204,21,.18),rgba(250,204,21,.06));border-color:rgba(250,204,21,.45);box-shadow:inset 0 0 0 1px rgba(250,204,21,.25)}
+    html[data-theme="dark"] .kv.warning{background:linear-gradient(180deg,rgba(202,138,4,.32),rgba(146,64,14,.18));border-color:rgba(234,179,8,.45);box-shadow:inset 0 0 0 1px rgba(234,179,8,.32)}
+    .kv.warning div{color:#b45309}
+    html[data-theme="dark"] .kv.warning div{color:#fbbf24}
+    .kv.danger{background:linear-gradient(180deg,rgba(227,90,90,.22),rgba(227,90,90,.08));border-color:rgba(227,90,90,.45);box-shadow:inset 0 0 0 1px rgba(227,90,90,.35)}
+    html[data-theme="dark"] .kv.danger{background:linear-gradient(180deg,rgba(185,28,28,.35),rgba(127,29,29,.2));border-color:rgba(248,113,113,.45);box-shadow:inset 0 0 0 1px rgba(248,113,113,.32)}
+    .kv.danger div{color:var(--danger)}
 
     /* ====== Login + Splash ====== */
     .splash{position:fixed;inset:0;display:none;place-items:center;background:#0b1a12;z-index:400}
@@ -1025,6 +1032,22 @@
     toast.classList.add('show');
     clearTimeout(showToast._t);
     showToast._t = setTimeout(()=> toast.classList.remove('show'), 1600);
+  }
+
+  const WARN_THRESHOLD = 0.9;
+  const WARN_PERCENT_LABEL = Math.round(WARN_THRESHOLD * 100);
+  const limitAlertState = { monto: 'ok', tiempo: 'ok', peso: 'ok' };
+  function setMetricLevel(metric, level, card, toastMessage){
+    if(card){
+      card.classList.toggle('danger', level === 'danger');
+      card.classList.toggle('warning', level === 'warning');
+    }
+    if(limitAlertState[metric] !== level){
+      if(level === 'danger' && toastMessage){
+        showToast(toastMessage);
+      }
+      limitAlertState[metric] = level;
+    }
   }
 
   /* =====================================================================
@@ -2610,6 +2633,9 @@
       const sumTiempoEl = document.getElementById('sumTiempo');
       const sumPesoEl = document.getElementById('sumPeso');
       const sumDistEl = document.getElementById('sumDistKm');
+      const sumMontoCard = sumMontoEl?.closest('.kv') || null;
+      const sumTiempoCard = sumTiempoEl?.closest('.kv') || null;
+      const sumPesoCard = sumPesoEl?.closest('.kv') || null;
       const summaryEl = document.getElementById('routeSummary');
       const origen = State.cab.find(c=>c.codigo===selOrigen.value);
       const originCoords = getLatLngCoords(origen);
@@ -2634,6 +2660,9 @@
           sumDistEl.textContent = '—';
           sumDistEl.removeAttribute('title');
         }
+        setMetricLevel('monto','ok', sumMontoCard);
+        setMetricLevel('tiempo','ok', sumTiempoCard);
+        setMetricLevel('peso','ok', sumPesoCard);
         if(btnOptimizar){
           btnOptimizar.disabled = true;
           btnOptimizar.dataset.tip = 'Seleccioná una cabecera con coordenadas válidas';
@@ -2719,40 +2748,71 @@
         sumPesoEl.textContent = fmtKg(totalPeso);
       }
       const maxPermitido = Number(cfg.maxMonto);
-      const tieneLimite = isFinite(maxPermitido) && maxPermitido > 0;
+      const tieneLimite = Number.isFinite(maxPermitido) && maxPermitido > 0;
       const excedido = tieneLimite && maxMonto > maxPermitido + 1e-6;
       const maxMinPermitido = Number(cfg.maxMin);
-      const tieneLimiteTiempo = isFinite(maxMinPermitido) && maxMinPermitido > 0;
+      const tieneLimiteTiempo = Number.isFinite(maxMinPermitido) && maxMinPermitido > 0;
       const excedeTiempo = tieneLimiteTiempo && totalMin > maxMinPermitido + 1e-6;
       const maxKgPermitido = Number(cfg.maxKg);
-      const tieneLimiteKg = isFinite(maxKgPermitido) && maxKgPermitido > 0;
+      const tieneLimiteKg = Number.isFinite(maxKgPermitido) && maxKgPermitido > 0;
       const excedePeso = tieneLimiteKg && maxPeso > maxKgPermitido + 1e-6;
+      const montoRatio = tieneLimite && maxPermitido > 0 ? maxMonto / maxPermitido : NaN;
+      const tiempoRatio = tieneLimiteTiempo && maxMinPermitido > 0 ? totalMin / maxMinPermitido : NaN;
+      const pesoRatio = tieneLimiteKg && maxKgPermitido > 0 && Number.isFinite(maxPeso) ? maxPeso / maxKgPermitido : NaN;
+
+      const montoLevel = excedido ? 'danger' : (Number.isFinite(montoRatio) && montoRatio >= WARN_THRESHOLD ? 'warning' : 'ok');
+      const tiempoLevel = excedeTiempo ? 'danger' : (Number.isFinite(tiempoRatio) && tiempoRatio >= WARN_THRESHOLD ? 'warning' : 'ok');
+      const pesoLevel = excedePeso ? 'danger' : (Number.isFinite(pesoRatio) && pesoRatio >= WARN_THRESHOLD ? 'warning' : 'ok');
+
+      setMetricLevel('monto', montoLevel, sumMontoCard, 'El pico de monto supera el límite configurado.');
+      setMetricLevel('tiempo', tiempoLevel, sumTiempoCard, 'El tiempo estimado supera el máximo configurado.');
+      setMetricLevel('peso', pesoLevel, sumPesoCard, 'La carga supera la capacidad configurada.');
+
       if(summaryEl){
-        summaryEl.classList.toggle('alert', excedido || excedeTiempo || excedePeso);
+        summaryEl.classList.toggle('alert', montoLevel === 'danger' || tiempoLevel === 'danger' || pesoLevel === 'danger');
       }
       if(sumMontoEl){
-        if(excedido){
-          sumMontoEl.setAttribute('title', `Supera el máximo permitido (${fmtMoney(maxPermitido)})`);
+        const ratioPct = Number.isFinite(montoRatio) ? (montoRatio * 100) : NaN;
+        const pctStr = Number.isFinite(ratioPct) ? `${ratioPct.toLocaleString('es-AR', { maximumFractionDigits: 1 })}%` : '—';
+        if(tieneLimite){
+          if(excedido){
+            sumMontoEl.setAttribute('title', `Supera el límite configurado (${fmtMoney(maxPermitido)}). Pico actual: ${fmtMoney(maxMonto)}. El indicador se marca en rojo al excederlo.`);
+          }else{
+            sumMontoEl.setAttribute('title', `Límite configurado: ${fmtMoney(maxPermitido)}. Pico actual: ${fmtMoney(maxMonto)} (${pctStr} del límite). Se marca en naranja desde el ${WARN_PERCENT_LABEL}% y en rojo al superarlo.`);
+          }
         }else{
-          sumMontoEl.removeAttribute('title');
+          sumMontoEl.setAttribute('title', `Pico actual: ${fmtMoney(maxMonto)}. Configurá un límite de monto máximo para activar alertas.`);
         }
       }
       if(sumTiempoEl){
-        if(excedeTiempo){
-          sumTiempoEl.setAttribute('title', `Supera el tiempo máximo permitido (${fmtMinutes(maxMinPermitido)})`);
+        const ratioPct = Number.isFinite(tiempoRatio) ? (tiempoRatio * 100) : NaN;
+        const pctStr = Number.isFinite(ratioPct) ? `${ratioPct.toLocaleString('es-AR', { maximumFractionDigits: 1 })}%` : '—';
+        if(tieneLimiteTiempo){
+          if(excedeTiempo){
+            sumTiempoEl.setAttribute('title', `Supera el máximo permitido (${fmtMinutes(maxMinPermitido)}). Tiempo estimado: ${fmtMinutes(totalMin)}. El indicador se marca en rojo al excederlo.`);
+          }else{
+            sumTiempoEl.setAttribute('title', `Máximo permitido: ${fmtMinutes(maxMinPermitido)}. Tiempo estimado: ${fmtMinutes(totalMin)} (${pctStr} del límite). Se marca en naranja desde el ${WARN_PERCENT_LABEL}% y en rojo al superarlo.`);
+          }
         }else{
-          sumTiempoEl.removeAttribute('title');
+          sumTiempoEl.setAttribute('title', `Tiempo estimado: ${fmtMinutes(totalMin)}. Configurá un límite de tiempo máximo para activar alertas.`);
         }
       }
       if(sumPesoEl){
-        if(tieneLimiteKg && Number.isFinite(maxPeso)){
-          if(excedePeso){
-            sumPesoEl.setAttribute('title', `Supera la capacidad de carga (${fmtKg(maxKgPermitido)}). Pico: ${fmtKg(maxPeso)}`);
+        const ratioPct = Number.isFinite(pesoRatio) ? (pesoRatio * 100) : NaN;
+        const pctStr = Number.isFinite(ratioPct) ? `${ratioPct.toLocaleString('es-AR', { maximumFractionDigits: 1 })}%` : '—';
+        const totalPesoStr = fmtKg(totalPeso);
+        if(tieneLimiteKg){
+          if(Number.isFinite(maxPeso)){
+            if(excedePeso){
+              sumPesoEl.setAttribute('title', `Supera la capacidad de carga (${fmtKg(maxKgPermitido)}). Pico registrado: ${fmtKg(maxPeso)} (${pctStr} del límite). Total acumulado: ${totalPesoStr}. El indicador se marca en rojo al excederlo.`);
+            }else{
+              sumPesoEl.setAttribute('title', `Capacidad configurada: ${fmtKg(maxKgPermitido)}. Pico registrado: ${fmtKg(maxPeso)} (${pctStr} del límite). Total acumulado: ${totalPesoStr}. Se marca en naranja desde el ${WARN_PERCENT_LABEL}% y en rojo al superarlo.`);
+            }
           }else{
-            sumPesoEl.setAttribute('title', `Capacidad: ${fmtKg(maxKgPermitido)} · Pico: ${fmtKg(maxPeso)}`);
+            sumPesoEl.setAttribute('title', `Capacidad configurada: ${fmtKg(maxKgPermitido)}. Pico registrado: —. Total acumulado: ${totalPesoStr}. Se marca en naranja desde el ${WARN_PERCENT_LABEL}% y en rojo al superarlo.`);
           }
         }else{
-          sumPesoEl.removeAttribute('title');
+          sumPesoEl.setAttribute('title', `Peso acumulado estimado: ${totalPesoStr}. Configurá la capacidad máxima de carga para activar alertas.`);
         }
       }
       if(btnOptimizar){
