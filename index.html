@@ -1288,6 +1288,23 @@
     }
     return { headers, rows };
   }
+  function ensureRequiredColumns(idx, required){
+    for(const entry of required){
+      const key = typeof entry === 'string' ? entry : entry.key;
+      const label = typeof entry === 'string' ? entry : (entry.label || entry.key);
+      if(key == null){
+        console.error('Columna obligatoria sin clave definida', entry);
+        showToast('Error al validar columnas');
+        return false;
+      }
+      if(idx[key] == null || idx[key] < 0){
+        console.error(`Falta columna obligatoria: ${label}`);
+        showToast(`Falta columna ${label}`);
+        return false;
+      }
+    }
+    return true;
+  }
   function csvExport(arr, headers){
     const hdr = headers;
     const csv = [hdr.join(',')].concat(arr.map(o => hdr.map(h => {
@@ -1489,6 +1506,7 @@
           lng: headers.findIndex(h=>/^lng|long/i.test(h)),
           cochera: headers.findIndex(h=>/cochera/i.test(h))
         };
+        if(!ensureRequiredColumns(idx, ['codigo','nombre','lat','lng'])) return;
         const out = rows.map(cells => {
           const lat = parseNumber(cells[idx.lat]); const lng = parseNumber(cells[idx.lng]);
           return { codigo: (cells[idx.codigo]||'').trim(), nombre:(cells[idx.nombre]||'').trim(), lat, lng, cochera: String(cells[idx.cochera]||'').toLowerCase().startsWith('s') };
@@ -1696,6 +1714,7 @@
           lat: headers.findIndex(h=>/^lat/i.test(h)),
           lng: headers.findIndex(h=>/^lng|long/i.test(h))
         };
+        if(!ensureRequiredColumns(idx, ['codigo','nombre','lat','lng'])) return;
         const out = rows.map(cells => {
           const lat = parseNumber(cells[idx.lat]); const lng = parseNumber(cells[idx.lng]);
           return { codigo: (cells[idx.codigo]||'').trim().padStart(5,'0'), nombre:(cells[idx.nombre]||'').trim(), lat, lng };
@@ -1923,6 +1942,7 @@
           supervisor: headers.findIndex(h=>/supervisor/i.test(h)),
           telefono: headers.findIndex(h=>/telefono/i.test(h))
         };
+        if(!ensureRequiredColumns(idx, ['codigo','nombre'])) return;
         const out = rows.map(cells => {
           const lat = idx.lat>=0 ? parseNumber(cells[idx.lat]) : NaN;
           const lng = idx.lng>=0 ? parseNumber(cells[idx.lng]) : NaN;
@@ -2017,6 +2037,7 @@
           lng: headers.findIndex(h=>/^lng|long/i.test(h)),
           direccion: headers.findIndex(h=>/direccion/i.test(h))
         };
+        if(!ensureRequiredColumns(idx, ['codigo','nombre','lat','lng'])) return;
         const out = rows.map(cells => {
           const lat = parseNumber(cells[idx.lat]); const lng = parseNumber(cells[idx.lng]);
           return { codigo:(cells[idx.codigo]||'').trim(), nombre:(cells[idx.nombre]||'').trim(), lat, lng, direccion:(cells[idx.direccion]||'').trim() };
@@ -2127,6 +2148,7 @@
       reader.onload = (e)=>{
         const {headers, rows} = csvParse(e.target.result);
         const idx = {legajo: headers.indexOf('legajo'), nombre: headers.indexOf('nombre'), licencia: headers.indexOf('licencia'), vto: headers.indexOf('vto'), tel: headers.indexOf('tel')};
+        if(!ensureRequiredColumns(idx, ['legajo','nombre','licencia','vto'])) return;
         const out = rows.map(c => ({legajo:c[idx.legajo], nombre:c[idx.nombre], licencia:c[idx.licencia], vto:c[idx.vto], tel:c[idx.tel]})).filter(r=>r.legajo && r.nombre);
         if(out.length){ State.cho = out; save(DB.cho, State.cho); render(); showToast('Choferes importados'); }
       };
@@ -2236,6 +2258,7 @@
       reader.onload = (e)=>{
         const {headers, rows} = csvParse(e.target.result);
         const idx = {id: headers.indexOf('id'), modelo: headers.indexOf('modelo'), capMonto: headers.indexOf('capMonto'), capKg: headers.indexOf('capKg'), velMax: headers.indexOf('velMax')};
+        if(!ensureRequiredColumns(idx, ['id','modelo','capMonto','capKg','velMax'])) return;
         const out = rows.map(c => ({id:c[idx.id], modelo:c[idx.modelo], capMonto: parseNumber(c[idx.capMonto]), capKg: parseNumber(c[idx.capKg]), velMax: parseNumber(c[idx.velMax])})).filter(r=>r.id);
         if(out.length){ State.cam = out; save(DB.cam, State.cam); render(); showToast('Camiones importados'); }
       };
@@ -2397,6 +2420,7 @@
           lat: headers.findIndex(h=>/^lat/i.test(h)),
           lng: headers.findIndex(h=>/^lng|long/i.test(h))
         };
+        if(!ensureRequiredColumns(idx, ['fecha','categoria','codigo','nombre','monto','peso','lat','lng'])) return;
         const out = rows.map(c => ({
           id: uuid(),
           fecha: c[idx.fecha]||'',
