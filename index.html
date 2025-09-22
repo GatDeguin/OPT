@@ -814,7 +814,7 @@
         <section class="card" style="margin-top:6px">
           <div class="card-body" style="overflow:auto; max-height:520px">
             <table class="table" id="otrosTable" aria-label="Otros Bancos/Terceros">
-              <thead><tr><th>Código</th><th>Nombre</th><th>Lat</th><th>Lng</th><th>Dirección</th></tr></thead>
+              <thead><tr><th>Código</th><th>Nombre</th><th>Lat</th><th>Lng</th><th>Dirección</th><th>Acciones</th></tr></thead>
               <tbody id="otrosTbody"></tbody>
             </table>
           </div>
@@ -1919,9 +1919,49 @@
     const tbody = document.getElementById('otrosTbody'); const cntEl = document.getElementById('otrosCount'); const qEl = document.getElementById('otrosQ');
     function render(){
       const q=(qEl.value||'').toLowerCase();
-      const arr = State.otros.filter(r=> !q || (r.codigo||'').toLowerCase().includes(q) || (r.nombre||'').toLowerCase().includes(q));
-      cntEl.textContent = arr.length;
-      tbody.innerHTML = arr.map(r => `<tr><td>${r.codigo||''}</td><td>${r.nombre||''}</td><td>${fmtCoord(r.lat)}</td><td>${fmtCoord(r.lng)}</td><td>${r.direccion||''}</td></tr>`).join('');
+      const rows = State.otros
+        .map((rec, idx)=>({ rec, idx }))
+        .filter(({rec})=>{
+          const cod = rec.codigo == null ? '' : String(rec.codigo);
+          const nom = rec.nombre == null ? '' : String(rec.nombre);
+          return !q || cod.toLowerCase().includes(q) || nom.toLowerCase().includes(q);
+        });
+      cntEl.textContent = rows.length;
+      tbody.innerHTML = rows.map(({rec, idx}) => {
+        const codigo = sanitizeHTML(rec.codigo || '');
+        const nombre = sanitizeHTML(rec.nombre || '');
+        const lat = sanitizeHTML(fmtCoord(rec.lat));
+        const lng = sanitizeHTML(fmtCoord(rec.lng));
+        const direccion = sanitizeHTML(rec.direccion || '');
+        return `
+          <tr data-index="${idx}">
+            <td>${codigo}</td>
+            <td>${nombre}</td>
+            <td class="right">${lat}</td>
+            <td class="right">${lng}</td>
+            <td>${direccion}</td>
+            <td>
+              <div class="row" style="gap:8px;flex-wrap:nowrap">
+                <button class="chip" data-act="edit">Editar</button>
+                <button class="chip" data-act="del">Eliminar</button>
+              </div>
+            </td>
+          </tr>`;
+      }).join('');
+      Array.from(tbody.querySelectorAll('tr')).forEach((tr, i)=>{
+        const row = rows[i];
+        if(!row) return;
+        tr.querySelector('button[data-act="edit"]')?.addEventListener('click', (ev)=>{
+          ev.preventDefault();
+          ev.stopPropagation();
+          editOtro(row.idx);
+        });
+        tr.querySelector('button[data-act="del"]')?.addEventListener('click', (ev)=>{
+          ev.preventDefault();
+          ev.stopPropagation();
+          deleteOtro(row.idx);
+        });
+      });
       notifyDataUpdate('otros');
     }
     qEl?.addEventListener('input', render);
@@ -1952,6 +1992,45 @@
       State.otros.push({codigo:'OTRO'+String(State.otros.length+1).padStart(2,'0'), nombre:'Nuevo', lat:-34.6, lng:-58.38, direccion:'—'});
       save(DB.otros, State.otros); render();
     });
+    function editOtro(idx){
+      const current = State.otros[idx];
+      if(!current) return;
+      const latVal = Number.isFinite(parseNumber(current.lat)) ? String(current.lat) : '';
+      const lngVal = Number.isFinite(parseNumber(current.lng)) ? String(current.lng) : '';
+      const html = `
+        <div class="field"><label>Código</label><input id="otroEditCodigo" value="${sanitizeHTML(current.codigo || '')}"></div>
+        <div class="field"><label>Nombre</label><input id="otroEditNombre" value="${sanitizeHTML(current.nombre || '')}"></div>
+        <div class="field"><label>Lat</label><input id="otroEditLat" value="${sanitizeHTML(latVal)}" placeholder="-34.6037"></div>
+        <div class="field"><label>Lng</label><input id="otroEditLng" value="${sanitizeHTML(lngVal)}" placeholder="-58.3816"></div>
+        <div class="field" style="grid-column:1/-1"><label>Dirección</label><input id="otroEditDireccion" value="${sanitizeHTML(current.direccion || '')}"></div>`;
+      openSmallModal('Editar banco/tercero', html, ()=>{
+        const codigo = (document.getElementById('otroEditCodigo')?.value || '').trim();
+        const nombre = (document.getElementById('otroEditNombre')?.value || '').trim();
+        const lat = parseNumber(document.getElementById('otroEditLat')?.value);
+        const lng = parseNumber(document.getElementById('otroEditLng')?.value);
+        const direccion = (document.getElementById('otroEditDireccion')?.value || '').trim();
+        if(!codigo || !nombre){ showToast('Completá código y nombre'); return false; }
+        if(!Number.isFinite(lat) || !Number.isFinite(lng)){ showToast('Ingresá coordenadas válidas'); return false; }
+        const duplicate = State.otros.some((o, i)=> i !== idx && (o.codigo||'').trim().toLowerCase() === codigo.toLowerCase());
+        if(duplicate){ showToast('Ya existe un registro con ese código'); return false; }
+        Object.assign(current, { codigo, nombre, lat, lng, direccion });
+        save(DB.otros, State.otros);
+        render();
+        showToast('Banco/tercero actualizado');
+        return true;
+      });
+    }
+    function deleteOtro(idx){
+      const current = State.otros[idx];
+      if(!current) return;
+      const label = [current.codigo, current.nombre].filter(Boolean).join(' — ');
+      const confirmed = confirm(`¿Eliminar banco/tercero${label ? ` ${label}` : ''}? Esta acción no se puede deshacer.`);
+      if(!confirmed) return;
+      State.otros.splice(idx,1);
+      save(DB.otros, State.otros);
+      render();
+      showToast('Banco/tercero eliminado');
+    }
     render();
   })();
 
