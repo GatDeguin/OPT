@@ -723,7 +723,7 @@
           <section class="card">
             <div class="card-body" style="overflow:auto; max-height:460px">
               <table class="table" id="sucTable" role="grid" aria-label="Listado de Sucursales" style="border:0">
-                <thead><tr><th>Código</th><th>Nombre</th><th>Lat</th><th>Lng</th><th>Cochera</th></tr></thead>
+                <thead><tr><th>Código</th><th>Nombre</th><th>Lat</th><th>Lng</th><th>Cochera</th><th>Acciones</th></tr></thead>
                 <tbody id="sucTbody"></tbody>
               </table>
             </div>
@@ -1183,6 +1183,16 @@
     const num = typeof n === 'number' ? n : parseNumber(n);
     return Number.isFinite(num) ? num.toFixed(4) : '—';
   }
+  function sanitizeHTML(value){
+    const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    };
+    return String(value ?? '').replace(/[&<>"']/g, ch => map[ch]);
+  }
 
   /* =====================================================================
      BASES DE DATOS (localStorage) y Seeds
@@ -1322,33 +1332,113 @@
 
     function render(){
       const q = (qEl.value||'').toLowerCase();
-      const arr = State.suc.filter(r=> !q || r.codigo.includes(q) || (r.nombre||'').toLowerCase().includes(q));
+      const arr = State.suc.filter(r=>{
+        const cod = r.codigo == null ? '' : String(r.codigo);
+        const nom = r.nombre == null ? '' : String(r.nombre);
+        return !q || cod.toLowerCase().includes(q) || nom.toLowerCase().includes(q);
+      });
       cntEl.textContent = arr.length;
-      tbody.innerHTML = arr.map(r => `
-        <tr data-cod="${r.codigo}">
-          <td>${r.codigo}</td><td>${r.nombre||''}</td><td class="right">${fmtCoord(r.lat)}</td><td class="right">${fmtCoord(r.lng)}</td><td>${r.cochera?'Sí':'No'}</td>
-        </tr>
-      `).join('');
-      [...tbody.querySelectorAll('tr')].forEach(tr=>{
-        tr.addEventListener('click', ()=>{
-          const cod = tr.dataset.cod;
-          const r = State.suc.find(x=>x.codigo===cod);
-          if(r && sucMap){
-            const lat = parseNumber(r.lat);
-            const lng = parseNumber(r.lng);
-            if(!Number.isFinite(lat) || !Number.isFinite(lng)){
-              showToast('Sucursal sin coordenadas válidas');
-              return;
-            }
-            sucMarker.setLatLng([lat,lng]);
-            sucMap.flyTo([lat,lng], 12, {duration:.6});
-          }
+      const rows = arr.map(rec => ({ rec, idx: State.suc.indexOf(rec) })).filter(row => row.idx >= 0);
+      tbody.innerHTML = rows.map(({rec, idx}) => {
+        const codigo = sanitizeHTML(rec.codigo || '');
+        const nombre = sanitizeHTML(rec.nombre || '');
+        const lat = sanitizeHTML(fmtCoord(rec.lat));
+        const lng = sanitizeHTML(fmtCoord(rec.lng));
+        const cochera = rec.cochera ? 'Sí' : 'No';
+        return `
+          <tr data-index="${idx}">
+            <td>${codigo}</td>
+            <td>${nombre}</td>
+            <td class="right">${lat}</td>
+            <td class="right">${lng}</td>
+            <td>${cochera}</td>
+            <td>
+              <div class="row" style="gap:8px;flex-wrap:nowrap">
+                <button class="chip" data-act="edit">Editar</button>
+                <button class="chip" data-act="del">Eliminar</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      Array.from(tbody.querySelectorAll('tr')).forEach((tr, i)=>{
+        const row = rows[i];
+        if(!row) return;
+        tr.addEventListener('click', (ev)=>{
+          if(ev.target.closest('button[data-act]')) return;
+          focusSucursal(row.rec);
+        });
+        tr.querySelector('button[data-act="edit"]')?.addEventListener('click', (ev)=>{
+          ev.preventDefault();
+          ev.stopPropagation();
+          editSucursal(row.idx);
+        });
+        tr.querySelector('button[data-act="del"]')?.addEventListener('click', (ev)=>{
+          ev.preventDefault();
+          ev.stopPropagation();
+          deleteSucursal(row.idx);
         });
       });
       notifyDataUpdate('sucursales');
     }
     qEl?.addEventListener('input', render);
 
+    function focusSucursal(r){
+      if(!r || !sucMap || !sucMarker) return;
+      const lat = parseNumber(r.lat);
+      const lng = parseNumber(r.lng);
+      if(!Number.isFinite(lat) || !Number.isFinite(lng)){
+        showToast('Sucursal sin coordenadas válidas');
+        return;
+      }
+      sucMarker.setLatLng([lat,lng]);
+      sucMap.flyTo([lat,lng], 12, {duration:.6});
+    }
+    function editSucursal(idx){
+      const current = State.suc[idx];
+      if(!current) return;
+      const latVal = Number.isFinite(parseNumber(current.lat)) ? String(current.lat) : '';
+      const lngVal = Number.isFinite(parseNumber(current.lng)) ? String(current.lng) : '';
+      const html = `
+        <div class="field"><label>Código</label><input id="sucEditCodigo" value="${sanitizeHTML(current.codigo || '')}"></div>
+        <div class="field"><label>Nombre</label><input id="sucEditNombre" value="${sanitizeHTML(current.nombre || '')}"></div>
+        <div class="field"><label>Lat</label><input id="sucEditLat" value="${sanitizeHTML(latVal)}" placeholder="-34.6037"></div>
+        <div class="field"><label>Lng</label><input id="sucEditLng" value="${sanitizeHTML(lngVal)}" placeholder="-58.3816"></div>
+        <div class="field"><label>Cochera</label>
+          <select id="sucEditCochera">
+            <option value="no"${current.cochera ? '' : ' selected'}>No</option>
+            <option value="si"${current.cochera ? ' selected' : ''}>Sí</option>
+          </select>
+        </div>
+      `;
+      openSmallModal('Editar sucursal', html, ()=>{
+        const codigo = (document.getElementById('sucEditCodigo')?.value || '').trim();
+        const nombre = (document.getElementById('sucEditNombre')?.value || '').trim();
+        const lat = parseNumber(document.getElementById('sucEditLat')?.value);
+        const lng = parseNumber(document.getElementById('sucEditLng')?.value);
+        const cochera = (document.getElementById('sucEditCochera')?.value || 'no') === 'si';
+        if(!codigo || !nombre){ showToast('Completá código y nombre'); return false; }
+        if(!Number.isFinite(lat) || !Number.isFinite(lng)){ showToast('Ingresá coordenadas válidas'); return false; }
+        const duplicate = State.suc.some((s, i)=> i !== idx && (s.codigo||'').trim().toLowerCase() === codigo.toLowerCase());
+        if(duplicate){ showToast('Ya existe una sucursal con ese código'); return false; }
+        Object.assign(current, { codigo, nombre, lat, lng, cochera });
+        save(DB.suc, State.suc);
+        render();
+        focusSucursal(State.suc[idx]);
+        showToast('Sucursal actualizada');
+        return true;
+      });
+    }
+    function deleteSucursal(idx){
+      const current = State.suc[idx];
+      if(!current) return;
+      const label = [current.codigo, current.nombre].filter(Boolean).join(' — ');
+      if(!confirm(`¿Eliminar sucursal${label ? ` ${label}` : ''}?`)) return;
+      State.suc.splice(idx,1);
+      save(DB.suc, State.suc);
+      render();
+      showToast('Sucursal eliminada');
+    }
     // CSV import/export
     document.getElementById('sucImport')?.addEventListener('click', ()=> document.getElementById('sucImportInput').click());
     document.getElementById('sucImportInput')?.addEventListener('change', (ev)=>{
@@ -1810,7 +1900,13 @@
     m.addEventListener('click', (e)=>{ if(e.target===m) close(); });
     m.querySelector('#mClose').addEventListener('click', close);
     m.querySelector('#mCancel').addEventListener('click', close);
-    m.querySelector('#mOk').addEventListener('click', ()=>{ if(onAccept) onAccept(); close(); });
+    m.querySelector('#mOk').addEventListener('click', ()=>{
+      if(onAccept){
+        const result = onAccept();
+        if(result === false) return;
+      }
+      close();
+    });
   }
 
   /* =====================================================================
