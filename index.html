@@ -602,6 +602,7 @@
                 <div class="kv"><small>Monto transportado (pico)</small><div id="sumMonto">$ 0</div></div>
                 <div class="kv"><small>Peso acumulado</small><div id="sumPeso">0 kg</div></div>
                 <div class="kv"><small>Tiempo estimado</small><div id="sumTiempo">0:00 h</div></div>
+                <div class="kv"><small>Distancia (km)</small><div id="sumDistKm">0</div></div>
               </div>
             </div>
           </section>
@@ -645,7 +646,7 @@
             </div>
             <div class="card-body" style="overflow:auto; max-height:260px">
               <table class="table" style="border:0">
-                <thead><tr><th>Fecha</th><th>Nombre</th><th>Paradas</th><th>Vehículo</th><th>Tiempo</th><th>Monto pico</th><th>Estado</th><th>Acciones</th></tr></thead>
+                <thead><tr><th>Fecha</th><th>Nombre</th><th>Paradas</th><th>Vehículo</th><th>Tiempo</th><th>Distancia (km)</th><th>Monto pico</th><th>Estado</th><th>Acciones</th></tr></thead>
                 <tbody id="histTbody"></tbody>
               </table>
             </div>
@@ -2608,6 +2609,7 @@
       const sumMontoEl = document.getElementById('sumMonto');
       const sumTiempoEl = document.getElementById('sumTiempo');
       const sumPesoEl = document.getElementById('sumPeso');
+      const sumDistEl = document.getElementById('sumDistKm');
       const summaryEl = document.getElementById('routeSummary');
       const origen = State.cab.find(c=>c.codigo===selOrigen.value);
       const originCoords = getLatLngCoords(origen);
@@ -2627,6 +2629,10 @@
         if(sumPesoEl){
           sumPesoEl.textContent = '—';
           sumPesoEl.removeAttribute('title');
+        }
+        if(sumDistEl){
+          sumDistEl.textContent = '—';
+          sumDistEl.removeAttribute('title');
         }
         if(btnOptimizar){
           btnOptimizar.disabled = true;
@@ -2689,6 +2695,19 @@
         maxPeso = Math.max(maxPeso, maxCargaPesoRuta);
       });
       lastSummary.distKm = Number.isFinite(totalDistKm) ? totalDistKm : null;
+      if(sumDistEl){
+        const distKm = Number.isFinite(totalDistKm) ? Math.round(totalDistKm * 10) / 10 : null;
+        if(distKm !== null){
+          sumDistEl.textContent = fmtES.format(distKm);
+        }else{
+          sumDistEl.textContent = '—';
+        }
+        if(Number.isFinite(totalDistKm) && totalDistKm > 0){
+          sumDistEl.setAttribute('title', `${totalDistKm.toLocaleString('es-AR', { maximumFractionDigits: 2 })} km totales`);
+        }else{
+          sumDistEl.removeAttribute('title');
+        }
+      }
       const totalMin = Math.round(totalTiempo);
       if(sumMontoEl){
         sumMontoEl.textContent = fmtMoney(maxMonto);
@@ -3159,8 +3178,16 @@
           const modelo = typeof h.camionModelo === 'string' ? h.camionModelo.trim() : '';
           return modelo || 'N/D';
         })();
+        const distLabel = (()=>{
+          const dist = parseNumber(h.distKm);
+          if(Number.isFinite(dist)){
+            const rounded = Math.round(dist * 10) / 10;
+            return fmtES.format(rounded);
+          }
+          return '—';
+        })();
         return `
-        <tr data-id="${h.id}"><td>${h.fecha||''}</td><td>${h.nombre||''}</td><td>${totalPts}</td><td>${vehiculoLabel}</td><td>${h.tiempo||'N/D'}</td><td>${h.montoPico||'—'}</td><td>${h.aprobado?'Aprobado':'Borrador'}</td>
+        <tr data-id="${h.id}"><td>${h.fecha||''}</td><td>${h.nombre||''}</td><td>${totalPts}</td><td>${vehiculoLabel}</td><td>${h.tiempo||'N/D'}</td><td>${distLabel}</td><td>${h.montoPico||'—'}</td><td>${h.aprobado?'Aprobado':'Borrador'}</td>
         <td><button class="chip" data-act="cargar">Cargar</button> <button class="chip" data-act="del">Eliminar</button></td></tr>
       `;}).join('');
       [...tbody.querySelectorAll('button[data-act="cargar"]')].forEach(b=> b.addEventListener('click', ()=>{
