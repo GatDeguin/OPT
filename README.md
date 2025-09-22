@@ -1,5 +1,11 @@
 # OPT
 
+## Desarrollo
+
+1. Instalá las dependencias con `npm install`.
+2. Iniciá el backend y el servidor de archivos con `npm start`.
+3. Abrí `http://localhost:3000/` en tu navegador para acceder al dashboard.
+
 ## Pruebas manuales
 
 - [ ] Reducir el valor de **Max. monto por camión** (por ejemplo a $50.000) en el panel de configuración y cargar una ruta con montos que superen el límite. Al ejecutar **Optimizar** debe mostrarse un mensaje de error en el cargador modal indicando que la ruta excede el máximo configurado y no se debe actualizar la distribución.
