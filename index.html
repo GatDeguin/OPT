@@ -2988,6 +2988,9 @@
     const lastSummary = { distKm: null };
 
     let lastSelectedCamion = null;
+    const recentRoutesTbody = document.getElementById('recentRoutes');
+    const MAX_RECENT_ROUTES = 5;
+    let recentBuffer = [];
 
     function camionLabel(id){
       if(id === null || id === undefined) return '';
@@ -4221,11 +4224,14 @@
       refreshDashboardMetrics();
     });
 
-    function addRecent(entry = {}, options = {}){
-      const tb = document.getElementById('recentRoutes');
-      if(!tb) return;
-      const { prepend = true } = options;
-      tb.querySelector('[data-placeholder="recent"]')?.remove();
+    function createRecentPlaceholderRow(){
+      const placeholder = document.createElement('tr');
+      placeholder.dataset.placeholder = 'recent';
+      placeholder.innerHTML = `<td colspan="5" style="padding:16px;text-align:center;color:var(--muted-text);font-weight:700;">Sin rutas aún</td>`;
+      return placeholder;
+    }
+
+    function createRecentRow(entry = {}){
       const defaultName = 'Ruta '+(new Date().toLocaleDateString('es-AR'));
       const nombre = typeof entry.nombre === 'string' && entry.nombre.trim() ? entry.nombre.trim() : defaultName;
       let totalPts;
@@ -4270,40 +4276,76 @@
         const minFraction = Number.isInteger(rounded) ? 0 : 1;
         km = rounded.toLocaleString('es-AR', { minimumFractionDigits: minFraction, maximumFractionDigits: 1 });
       }
-      const rowHtml = `<td>${nombre}</td><td>${totalPts}</td><td>${vehiculo}</td><td>${tiempo}</td><td>${km}</td>`;
-      let existing = null;
-      if(entry && entry.id){
-        existing = Array.from(tb.querySelectorAll('tr[data-id]')).find(tr => tr.dataset.id === entry.id) || null;
-      }
-      if(existing){
-        existing.innerHTML = rowHtml;
-        if(prepend){ tb.prepend(existing); }
-        return existing;
-      }
       const tr = document.createElement('tr');
       if(entry && entry.id){ tr.dataset.id = entry.id; }
-      tr.innerHTML = rowHtml;
-      if(prepend){
-        tb.prepend(tr);
-      }else{
-        tb.appendChild(tr);
-      }
+      tr.innerHTML = `<td>${nombre}</td><td>${totalPts}</td><td>${vehiculo}</td><td>${tiempo}</td><td>${km}</td>`;
       return tr;
     }
 
-    function renderRecentFromHistory(){
-      const tb = document.getElementById('recentRoutes');
-      if(!tb) return;
-      tb.innerHTML = '';
-      const recent = State.hist.filter(item => item && item.aprobado).slice(0, 5);
-      if(!recent.length){
-        const placeholder = document.createElement('tr');
-        placeholder.dataset.placeholder = 'recent';
-        placeholder.innerHTML = `<td colspan="5" style="padding:16px;text-align:center;color:var(--muted-text);font-weight:700;">Sin rutas aprobadas todavía</td>`;
-        tb.appendChild(placeholder);
-        return;
+    function renderRecentTable(entries = []){
+      if(!recentRoutesTbody) return;
+      const rows = entries.map(entry => createRecentRow(entry));
+      if(!rows.length){
+        rows.push(createRecentPlaceholderRow());
       }
-      recent.forEach(entry => addRecent(entry, { prepend: false }));
+      recentRoutesTbody.replaceChildren(...rows);
+    }
+
+    function setRecentEntries(entries = []){
+      if(Array.isArray(entries)){
+        recentBuffer = entries
+          .filter(item => item && typeof item === 'object')
+          .slice(0, MAX_RECENT_ROUTES)
+          .map(item => ({ ...item }));
+      }else{
+        recentBuffer = [];
+      }
+      renderRecentTable(recentBuffer);
+    }
+
+    function addRecent(entry = {}, options = {}){
+      if(!recentRoutesTbody) return null;
+      const { prepend = true, limit = MAX_RECENT_ROUTES } = options;
+      const entryIsObject = entry && typeof entry === 'object';
+      const hasData = entryIsObject && Object.keys(entry).length > 0;
+
+      if(hasData){
+        if(entry.id){
+          const idx = recentBuffer.findIndex(item => item && item.id === entry.id);
+          if(idx >= 0){
+            const merged = { ...recentBuffer[idx], ...entry };
+            recentBuffer[idx] = merged;
+            if(prepend && idx !== 0){
+              recentBuffer.splice(idx, 1);
+              recentBuffer.unshift(merged);
+            }
+          }else{
+            if(prepend){
+              recentBuffer.unshift({ ...entry });
+            }else{
+              recentBuffer.push({ ...entry });
+            }
+          }
+        }else{
+          if(prepend){
+            recentBuffer.unshift({ ...entry });
+          }else{
+            recentBuffer.push({ ...entry });
+          }
+        }
+      }else if(options.reset){
+        recentBuffer = [];
+      }
+
+      const max = Number.isFinite(limit) && limit > 0 ? limit : MAX_RECENT_ROUTES;
+      recentBuffer = recentBuffer.filter(Boolean).slice(0, max);
+      renderRecentTable(recentBuffer);
+      return recentBuffer[0] || null;
+    }
+
+    function renderRecentFromHistory(){
+      const recent = State.hist.filter(item => item && item.aprobado).slice(0, MAX_RECENT_ROUTES);
+      setRecentEntries(recent);
     }
 
     function renderHist(){
