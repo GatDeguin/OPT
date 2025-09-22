@@ -159,6 +159,20 @@
     html[data-theme="dark"] .toast button:hover{background:rgba(15,23,42,.18)}
     .toast button:focus-visible{outline:2px solid currentColor;outline-offset:2px}
 
+    .data-status{display:none;align-items:center;gap:12px;margin:16px 22px 0;padding:12px 16px;border-radius:12px;background:var(--card);color:var(--text);box-shadow:var(--shadow);font-weight:600;line-height:1.4}
+    .data-status[data-state="loading"],
+    .data-status[data-state="error"]{display:flex}
+    .data-status[data-state="error"]{background:rgba(227,90,90,.12);color:var(--danger);box-shadow:0 14px 26px rgba(227,90,90,.18)}
+    .data-status__spinner{width:18px;height:18px;border-radius:50%;border:3px solid rgba(67,164,109,.2);border-top-color:var(--accent);animation:data-spin .75s linear infinite}
+    .data-status[data-state="error"] .data-status__spinner{display:none}
+    .data-status__message{flex:1;min-width:0;font-weight:600}
+    .data-status__retry{appearance:none;border:0;border-radius:8px;padding:6px 12px;font-weight:700;cursor:pointer;background:rgba(67,164,109,.15);color:var(--accent);transition:background .2s ease, transform .15s ease}
+    .data-status__retry:hover{background:rgba(67,164,109,.24);transform:translateY(-1px)}
+    .data-status__retry:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+    .data-status[data-state="loading"] .data-status__retry{display:none}
+
+    @keyframes data-spin{to{transform:rotate(1turn)}}
+
     .import-note{margin-top:6px;font-size:12px;color:var(--muted-text);display:flex;align-items:center;gap:6px;font-weight:600;line-height:1.5}
     .card > .import-note{padding:0 16px}
 
@@ -486,6 +500,12 @@
           </button>
         </div>
       </header>
+
+      <div id="dataStatus" class="data-status" data-state="loading" role="status" aria-live="polite" aria-hidden="false">
+        <span class="data-status__spinner" aria-hidden="true"></span>
+        <span id="dataStatusMessage" class="data-status__message">Cargando datos…</span>
+        <button id="dataStatusRetry" class="data-status__retry" type="button">Reintentar</button>
+      </div>
 
       <!-- ===== Dashboard ===== -->
       <section class="content" id="dashboardSection" aria-label="Dashboard">
@@ -1387,7 +1407,7 @@
   }
 
   /* =====================================================================
-     BASES DE DATOS (localStorage) y Seeds
+     BASES DE DATOS (localStorage)
   ===================================================================== */
   const DB = {
     atms: 'db-atms-v3',
@@ -1402,38 +1422,6 @@
   };
   function load(key, fallback){ try{ return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch(e){ return fallback; } }
   function save(key, value){ localStorage.setItem(key, JSON.stringify(value)); }
-
-  const seedATMs = [
-    {codigo:"50007", nombre:"América",     lat:-35.426, lng:-61.306},
-    {codigo:"50009", nombre:"Ayacucho",    lat:-37.149, lng:-57.139},
-    {codigo:"50010", nombre:"Bahía Blanca",lat:-38.715, lng:-62.268},
-    {codigo:"50012", nombre:"Bragado",     lat:-35.119, lng:-60.494}
-  ];
-  const seedSuc = [
-    {codigo:"10001", nombre:"Bahía Blanca - Centro", lat:-38.718, lng:-62.268, cochera:false},
-    {codigo:"10002", nombre:"La Plata - Catedral",   lat:-34.921, lng:-57.954, cochera:true},
-    {codigo:"10003", nombre:"Mar del Plata",         lat:-38.002, lng:-57.556, cochera:false}
-  ];
-  const seedCab = [
-    {codigo:"0106", nombre:"Quilmes", direccion:"Av. Calchaquí", localidad:"Quilmes", supervisor:"M. Ruiz", telefono:"11-23456", lat:-34.7206, lng:-58.2546},
-    {codigo:"0101", nombre:"La Plata", direccion:"Av. 7 925", localidad:"La Plata", supervisor:"J. Pérez", telefono:"11-12348", lat:-34.9214, lng:-57.9545}
-  ];
-  const seedOtros = [
-    {codigo:"BCRA01", nombre:"BCRA", lat:-34.6037, lng:-58.3816, direccion:"Reconquista 266"},
-    {codigo:"OTRO01", nombre:"Otro Banco X", lat:-34.6, lng:-58.44, direccion:"Av. Siempre Viva 123"}
-  ];
-  const seedCho = [
-    {legajo:"C001", nombre:"Juan Pérez", licencia:"C1", vto:"2026-06-30", tel:"11-1234-5678"},
-    {legajo:"C002", nombre:"María López", licencia:"C2", vto:"2025-11-15", tel:"11-2345-6789"}
-  ];
-  const seedCam = [
-    {id:"TRK101", modelo:"Iveco Daily", capMonto:200000000, capKg:1500, velMax:60},
-    {id:"TRK102", modelo:"Mercedes Sprinter", capMonto:250000000, capKg:1700, velMax:65}
-  ];
-  const seedOrd = [
-    {id:uuid(), fecha:"2025-08-22", categoria:"ATM", codigo:"50010", nombre:"Bahía Blanca", lat:-38.715, lng:-62.268, monto:-30000000, moneda:"ARS", denominacion:"$1000", servicio:"Abastecimiento", peso:20, usar:false},
-    {id:uuid(), fecha:"2025-08-22", categoria:"Sucursal", codigo:"10003", nombre:"Mar del Plata", lat:-38.002, lng:-57.556, monto:45000000, moneda:"ARS", denominacion:"Mixta", servicio:"Retiro", peso:30, usar:false}
-  ];
 
   // CONFIG por defecto
   const cfg = Object.assign({
@@ -1517,15 +1505,100 @@
      MÓDULO DATOS ENTIDADES (ATMs, Suc, Cab, Otros, Choferes, Camiones)
   ===================================================================== */
   const State = {
-    atms: load(DB.atms, seedATMs),
-    suc: load(DB.suc, seedSuc),
-    cab: load(DB.cab, seedCab),
-    otros: load(DB.otros, seedOtros),
-    cho: load(DB.cho, seedCho),
-    cam: load(DB.cam, seedCam),
-    ord: load(DB.ord, seedOrd),
+    atms: load(DB.atms, []),
+    suc: load(DB.suc, []),
+    cab: load(DB.cab, []),
+    otros: load(DB.otros, []),
+    cho: load(DB.cho, []),
+    cam: load(DB.cam, []),
+    ord: load(DB.ord, []),
     hist: load(DB.hist, [])
   };
+
+  const DataBootstrap = (function(){
+    const statusEl = document.getElementById('dataStatus');
+    const messageEl = document.getElementById('dataStatusMessage');
+    const retryBtn = document.getElementById('dataStatusRetry');
+    if(!statusEl){
+      return { reload: ()=>Promise.resolve() };
+    }
+
+    const sources = [
+      { stateKey: 'suc', scope: 'sucursales', url: '/api/sucursales', label: 'sucursales' },
+      { stateKey: 'atms', scope: 'atms', url: '/api/atms', label: 'ATMs' },
+      { stateKey: 'cab', scope: 'cabeceras', url: '/api/cabeceras', label: 'cabeceras' },
+      { stateKey: 'otros', scope: 'otros', url: '/api/otros', label: 'otros bancos' },
+      { stateKey: 'cho', scope: 'choferes', url: '/api/choferes', label: 'choferes' },
+      { stateKey: 'cam', scope: 'camiones', url: '/api/camiones', label: 'camiones' },
+      { stateKey: 'ord', scope: 'ordenes', url: '/api/ordenes', label: 'órdenes' }
+    ];
+
+    let loadingPromise = null;
+
+    function setStatus(state, message){
+      statusEl.dataset.state = state;
+      statusEl.setAttribute('aria-hidden', state === 'ready' ? 'true' : 'false');
+      if(messageEl){
+        messageEl.textContent = message;
+      }
+    }
+
+    async function fetchSource(source){
+      const response = await fetch(source.url, { headers: { 'Accept': 'application/json' } });
+      if(!response.ok){
+        throw new Error(`Estado HTTP ${response.status}`);
+      }
+      const payload = await response.json();
+      if(!Array.isArray(payload)){
+        throw new Error('Respuesta inválida');
+      }
+      const stateKey = source.stateKey;
+      State[stateKey] = payload;
+      if(DB[stateKey]){
+        save(DB[stateKey], State[stateKey]);
+      }
+      document.dispatchEvent(new CustomEvent('data:bootstrap', { detail: { scope: source.scope } }));
+    }
+
+    async function loadAll(){
+      if(loadingPromise){
+        return loadingPromise;
+      }
+      loadingPromise = (async ()=>{
+        setStatus('loading', 'Cargando datos del servidor…');
+        const failed = [];
+        for(const source of sources){
+          try{
+            await fetchSource(source);
+          }catch(err){
+            console.error(`Error al cargar ${source.scope}:`, err);
+            failed.push(source);
+          }
+        }
+        if(failed.length){
+          const labels = failed.map(s => s.label || s.scope);
+          const joined = labels.join(', ');
+          const plural = failed.length > 1;
+          const message = plural
+            ? `No se pudieron cargar ${joined}. Verificá el servidor e intentá nuevamente.`
+            : `No se pudo cargar ${joined}. Verificá el servidor e intentá nuevamente.`;
+          setStatus('error', message);
+        }else{
+          setStatus('ready', 'Datos sincronizados correctamente');
+        }
+        loadingPromise = null;
+      })();
+      return loadingPromise;
+    }
+
+    retryBtn?.addEventListener('click', ()=>{ loadAll(); });
+
+    if((statusEl.dataset.state || '') === 'loading'){
+      loadAll();
+    }
+
+    return { reload: loadAll };
+  })();
 
   const stateSnapshots = new Map();
   function cloneStateData(data){
@@ -2691,6 +2764,13 @@
     }
     qEl?.addEventListener('input', render);
 
+    document.addEventListener('data:bootstrap', (ev)=>{
+      const scope = ev?.detail?.scope;
+      if(!scope || scope === 'sucursales'){
+        render();
+      }
+    });
+
     function focusSucursal(r){
       if(!r || !sucMap || !sucMarker) return;
       const lat = parseNumber(r.lat);
@@ -2875,6 +2955,14 @@
       notifyDataUpdate('atms');
     }
     qEl?.addEventListener('input', render);
+
+    document.addEventListener('data:bootstrap', (ev)=>{
+      const scope = ev?.detail?.scope;
+      if(!scope || scope === 'atms'){
+        pendingMapRefresh = true;
+        render();
+      }
+    });
 
     function focusATM(rec){
       if(!rec || !atmMap || !atmMarker) return;
@@ -3109,6 +3197,13 @@
     }
     qEl?.addEventListener('input', render);
 
+    document.addEventListener('data:bootstrap', (ev)=>{
+      const scope = ev?.detail?.scope;
+      if(!scope || scope === 'cabeceras'){
+        render();
+      }
+    });
+
     function editCabecera(idx){
       const current = State.cab[idx];
       if(!current) return;
@@ -3296,6 +3391,13 @@
       notifyDataUpdate('otros');
     }
     qEl?.addEventListener('input', render);
+
+    document.addEventListener('data:bootstrap', (ev)=>{
+      const scope = ev?.detail?.scope;
+      if(!scope || scope === 'otros'){
+        render();
+      }
+    });
     document.getElementById('otrosImport')?.addEventListener('click', ()=> document.getElementById('otrosImportInput').click());
     document.getElementById('otrosImportInput')?.addEventListener('change', (ev)=>{
       const f = ev.target.files?.[0]; if(!f) return;
@@ -3420,6 +3522,13 @@
       notifyDataUpdate('choferes');
     }
     qEl?.addEventListener('input', render);
+
+    document.addEventListener('data:bootstrap', (ev)=>{
+      const scope = ev?.detail?.scope;
+      if(!scope || scope === 'choferes'){
+        render();
+      }
+    });
     document.getElementById('choImport')?.addEventListener('click', ()=> document.getElementById('choImportInput').click());
     document.getElementById('choImportInput')?.addEventListener('change', (ev)=>{
       const f = ev.target.files?.[0]; if(!f) return; const reader = new FileReader();
@@ -3536,6 +3645,13 @@
       notifyDataUpdate('camiones');
     }
     qEl?.addEventListener('input', render);
+
+    document.addEventListener('data:bootstrap', (ev)=>{
+      const scope = ev?.detail?.scope;
+      if(!scope || scope === 'camiones'){
+        render();
+      }
+    });
     document.getElementById('camImport')?.addEventListener('click', ()=> document.getElementById('camImportInput').click());
     document.getElementById('camImportInput')?.addEventListener('change', (ev)=>{
       const f = ev.target.files?.[0]; if(!f) return; const reader = new FileReader();
@@ -3660,6 +3776,13 @@
       });
     }
     qEl?.addEventListener('input', render);
+
+    document.addEventListener('data:bootstrap', (ev)=>{
+      const scope = ev?.detail?.scope;
+      if(!scope || scope === 'ordenes'){
+        render();
+      }
+    });
 
     function editRow(id){
       const o = State.ord.find(x=>x.id===id) || {id:uuid(), fecha:'', categoria:'', codigo:'', nombre:'', lat:'', lng:'', monto:0, moneda:'ARS', denominacion:'', servicio:'', peso:0, usar:false};
