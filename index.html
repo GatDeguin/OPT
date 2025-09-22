@@ -839,7 +839,7 @@
         <section class="card" style="margin-top:6px">
           <div class="card-body" style="overflow:auto; max-height:520px">
             <table class="table" id="choTable" aria-label="Choferes">
-              <thead><tr><th>Legajo</th><th>Nombre</th><th>Licencia</th><th>Vencimiento</th><th>Teléfono</th></tr></thead>
+              <thead><tr><th>Legajo</th><th>Nombre</th><th>Licencia</th><th>Vencimiento</th><th>Teléfono</th><th>Acciones</th></tr></thead>
               <tbody id="choTbody"></tbody>
             </table>
           </div>
@@ -2039,9 +2039,46 @@
     const tbody = document.getElementById('choTbody'); const cntEl = document.getElementById('choCount'); const qEl = document.getElementById('choQ');
     function render(){
       const q=(qEl.value||'').toLowerCase();
-      const arr = State.cho.filter(r=> !q || Object.values(r).some(v => String(v).toLowerCase().includes(q)));
-      cntEl.textContent = arr.length;
-      tbody.innerHTML = arr.map(r => `<tr><td>${r.legajo}</td><td>${r.nombre}</td><td>${r.licencia}</td><td>${r.vto}</td><td>${r.tel||''}</td></tr>`).join('');
+      const rows = State.cho
+        .map((rec, idx)=>({ rec, idx }))
+        .filter(({rec})=> !q || Object.values(rec).some(v => String(v ?? '').toLowerCase().includes(q)));
+      cntEl.textContent = rows.length;
+      tbody.innerHTML = rows.map(({rec, idx}) => {
+        const legajo = sanitizeHTML(rec.legajo || '');
+        const nombre = sanitizeHTML(rec.nombre || '');
+        const licencia = sanitizeHTML(rec.licencia || '');
+        const vto = sanitizeHTML(rec.vto || '');
+        const tel = sanitizeHTML(rec.tel || '');
+        return `
+          <tr data-index="${idx}">
+            <td>${legajo}</td>
+            <td>${nombre}</td>
+            <td>${licencia}</td>
+            <td>${vto}</td>
+            <td>${tel}</td>
+            <td>
+              <div class="row" style="gap:8px;flex-wrap:nowrap">
+                <button class="chip" data-act="edit">Editar</button>
+                <button class="chip" data-act="del">Eliminar</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      rows.forEach((row, i)=>{
+        const tr = tbody.children[i];
+        if(!tr) return;
+        tr.querySelector('button[data-act="edit"]')?.addEventListener('click', (ev)=>{
+          ev.preventDefault();
+          ev.stopPropagation();
+          editChofer(row.idx);
+        });
+        tr.querySelector('button[data-act="del"]')?.addEventListener('click', (ev)=>{
+          ev.preventDefault();
+          ev.stopPropagation();
+          deleteChofer(row.idx);
+        });
+      });
       notifyDataUpdate('choferes');
     }
     qEl?.addEventListener('input', render);
@@ -2061,6 +2098,42 @@
       State.cho.push({legajo:'C'+String(State.cho.length+1).padStart(3,'0'), nombre:'Nuevo', licencia:'C1', vto:'2026-01-01', tel:''});
       save(DB.cho, State.cho); render();
     });
+
+    function editChofer(idx){
+      const current = State.cho[idx];
+      if(!current) return;
+      const html = `
+        <div class="field"><label>Legajo</label><input value="${sanitizeHTML(current.legajo || '')}" disabled></div>
+        <div class="field"><label>Nombre</label><input value="${sanitizeHTML(current.nombre || '')}" disabled></div>
+        <div class="field"><label>Licencia</label><input id="choEditLicencia" value="${sanitizeHTML(current.licencia || '')}" placeholder="C1"></div>
+        <div class="field"><label>Vencimiento</label><input id="choEditVto" type="date" value="${sanitizeHTML(current.vto || '')}"></div>
+        <div class="field"><label>Teléfono</label><input id="choEditTel" value="${sanitizeHTML(current.tel || '')}" placeholder="11-1234-5678"></div>
+      `;
+      openSmallModal('Editar chofer', html, ()=>{
+        const licencia = (document.getElementById('choEditLicencia')?.value || '').trim();
+        const vto = (document.getElementById('choEditVto')?.value || '').trim();
+        const tel = (document.getElementById('choEditTel')?.value || '').trim();
+        if(!licencia){ showToast('Ingresá el tipo de licencia'); return false; }
+        if(!vto){ showToast('Ingresá la fecha de vencimiento'); return false; }
+        Object.assign(current, { licencia, vto, tel });
+        save(DB.cho, State.cho);
+        render();
+        showToast('Chofer actualizado');
+        return true;
+      });
+    }
+
+    function deleteChofer(idx){
+      const current = State.cho[idx];
+      if(!current) return;
+      const label = [current.legajo, current.nombre].filter(Boolean).join(' — ');
+      const confirmed = confirm(`¿Eliminar chofer${label ? ` ${label}` : ''}? Esta acción no se puede deshacer.`);
+      if(!confirmed) return;
+      State.cho.splice(idx,1);
+      save(DB.cho, State.cho);
+      render();
+      showToast('Chofer eliminado');
+    }
     render();
   })();
 
