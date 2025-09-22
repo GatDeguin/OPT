@@ -600,6 +600,7 @@
                 <div class="kv"><small>Puntos</small><div id="sumPuntos">0</div></div>
                 <div class="kv"><small>Camiones comisión</small><div id="sumCamiones">1</div></div>
                 <div class="kv"><small>Monto transportado (pico)</small><div id="sumMonto">$ 0</div></div>
+                <div class="kv"><small>Peso acumulado</small><div id="sumPeso">0 kg</div></div>
                 <div class="kv"><small>Tiempo estimado</small><div id="sumTiempo">0:00 h</div></div>
               </div>
             </div>
@@ -964,6 +965,7 @@
     const minutes = total % 60;
     return `${hours}:${String(minutes).padStart(2,'0')} h`;
   };
+  const fmtKg = (n) => Number.isFinite(n) ? `${fmtES.format(n)} kg` : '—';
   const htmlEl = document.documentElement;
 
   // THEME
@@ -2507,6 +2509,8 @@
       return `Camión ${idx+1}`;
     }
 
+    const defaultOptimizeTip = btnOptimizar?.dataset?.tip || 'Optimizar (A* + 2-opt)';
+
     function updateSummary(){
       const totalPoints = flattenRoutes().length;
       document.getElementById('sumPuntos').textContent = totalPoints;
@@ -2515,12 +2519,12 @@
       document.getElementById('sumCamiones').textContent = Math.max(selectedTrucks, usedTrucks || (totalPoints?1:0));
       const sumMontoEl = document.getElementById('sumMonto');
       const sumTiempoEl = document.getElementById('sumTiempo');
+      const sumPesoEl = document.getElementById('sumPeso');
       const summaryEl = document.getElementById('routeSummary');
       const origen = State.cab.find(c=>c.codigo===selOrigen.value);
       const originCoords = getLatLngCoords(origen);
       const hasOrigen = Boolean(originCoords);
 
-      if(btnOptimizar){ btnOptimizar.disabled = !hasOrigen; }
       if(btnExportar){ btnExportar.disabled = !hasOrigen; }
 
       if(!hasOrigen){
@@ -2531,6 +2535,14 @@
         if(sumTiempoEl){
           sumTiempoEl.textContent = '—';
           sumTiempoEl.removeAttribute('title');
+        }
+        if(sumPesoEl){
+          sumPesoEl.textContent = '—';
+          sumPesoEl.removeAttribute('title');
+        }
+        if(btnOptimizar){
+          btnOptimizar.disabled = true;
+          btnOptimizar.dataset.tip = 'Seleccioná una cabecera con coordenadas válidas';
         }
         summaryEl?.classList.remove('alert');
         if(totalPoints>0){
@@ -2550,11 +2562,15 @@
       let maxMonto = 0;
       let totalTiempo = 0;
       let totalDistKm = 0;
+      let totalPeso = 0;
+      let maxPeso = 0;
       currentRoute.forEach(route=>{
         let carga = 0;
         let maxCargaRuta = 0;
         let minRuta = 0;
         let distKmRuta = 0;
+        let cargaPeso = 0;
+        let maxCargaPesoRuta = 0;
         let last = originCoords ? {...originCoords} : null;
         route.forEach(p=>{
           const coords = getLatLngCoords(p);
@@ -2563,6 +2579,16 @@
           const monto = Number(p.monto) || 0;
           carga += monto < 0 ? 0 : monto;
           maxCargaRuta = Math.max(maxCargaRuta, carga);
+          const peso = parseNumber(p.peso);
+          if(Number.isFinite(peso)){
+            totalPeso += peso;
+            if(peso >= 0){
+              cargaPeso += peso;
+            }else{
+              cargaPeso = Math.max(0, cargaPeso + peso);
+            }
+            maxCargaPesoRuta = Math.max(maxCargaPesoRuta, cargaPeso);
+          }
           if(coords){ last = coords; }
         });
         if(originCoords && route.length && last){
@@ -2572,6 +2598,7 @@
         totalTiempo += minRuta + tiempoTraslado;
         maxMonto = Math.max(maxMonto, maxCargaRuta);
         totalDistKm += distKmRuta;
+        maxPeso = Math.max(maxPeso, maxCargaPesoRuta);
       });
       lastSummary.distKm = Number.isFinite(totalDistKm) ? totalDistKm : null;
       const totalMin = Math.round(totalTiempo);
@@ -2581,14 +2608,20 @@
       if(sumTiempoEl){
         sumTiempoEl.textContent = fmtMinutes(totalMin);
       }
+      if(sumPesoEl){
+        sumPesoEl.textContent = fmtKg(totalPeso);
+      }
       const maxPermitido = Number(cfg.maxMonto);
       const tieneLimite = isFinite(maxPermitido) && maxPermitido > 0;
       const excedido = tieneLimite && maxMonto > maxPermitido + 1e-6;
       const maxMinPermitido = Number(cfg.maxMin);
       const tieneLimiteTiempo = isFinite(maxMinPermitido) && maxMinPermitido > 0;
       const excedeTiempo = tieneLimiteTiempo && totalMin > maxMinPermitido + 1e-6;
+      const maxKgPermitido = Number(cfg.maxKg);
+      const tieneLimiteKg = isFinite(maxKgPermitido) && maxKgPermitido > 0;
+      const excedePeso = tieneLimiteKg && maxPeso > maxKgPermitido + 1e-6;
       if(summaryEl){
-        summaryEl.classList.toggle('alert', excedido || excedeTiempo);
+        summaryEl.classList.toggle('alert', excedido || excedeTiempo || excedePeso);
       }
       if(sumMontoEl){
         if(excedido){
@@ -2603,6 +2636,27 @@
         }else{
           sumTiempoEl.removeAttribute('title');
         }
+      }
+      if(sumPesoEl){
+        if(tieneLimiteKg && Number.isFinite(maxPeso)){
+          if(excedePeso){
+            sumPesoEl.setAttribute('title', `Supera la capacidad de carga (${fmtKg(maxKgPermitido)}). Pico: ${fmtKg(maxPeso)}`);
+          }else{
+            sumPesoEl.setAttribute('title', `Capacidad: ${fmtKg(maxKgPermitido)} · Pico: ${fmtKg(maxPeso)}`);
+          }
+        }else{
+          sumPesoEl.removeAttribute('title');
+        }
+      }
+      if(btnOptimizar){
+        let reason = '';
+        if(excedido){
+          reason = `Supera el máximo permitido (${fmtMoney(maxPermitido)})`;
+        }else if(excedePeso){
+          reason = `Supera la capacidad de carga (${fmtKg(maxKgPermitido)})`;
+        }
+        btnOptimizar.disabled = Boolean(reason);
+        btnOptimizar.dataset.tip = reason || defaultOptimizeTip;
       }
     }
 
