@@ -174,6 +174,7 @@
     table{width:100%;border-collapse:collapse;font-size:14px}
     thead th{text-align:left;padding:12px 10px;color:var(--muted-text);font-weight:800;border-bottom:1px solid var(--line-clr)}
     tbody td{padding:12px 10px;border-bottom:1px solid var(--line-clr);color:var(--text)}
+    .right{text-align:right}
     tbody tr{transition: background .18s ease}
     tbody tr:hover{background:rgba(0,0,0,.03)}
     html[data-theme="dark"] tbody tr:hover{background:rgba(255,255,255,.03)}
@@ -181,6 +182,7 @@
 
     /* ====== Dashboard ====== */
     .stats{display:grid;grid-template-columns:repeat(4, minmax(0,1fr));gap:18px}
+    .stats.reports{grid-template-columns:repeat(auto-fit,minmax(220px,1fr));}
     .stat{display:grid;grid-template-columns:auto 1fr;gap:12px;padding:18px}
     .stat .circle{width:44px;height:44px;border-radius:12px;background:var(--brand-50);display:grid;place-items:center;border:1px solid var(--brand-100);box-shadow: inset 0 -1px 0 rgba(0,0,0,.05)}
     .stat .value{font-size:28px;font-weight:800;color:var(--ink-800);letter-spacing:-.5px}
@@ -917,9 +919,170 @@
         </div>
       </section>
 
-      <!-- ===== REPORTES (placeholder ligero) ===== -->
+      <!-- ===== REPORTES ===== -->
       <section class="content hidden" id="reportesSection" aria-label="Reportes">
-        <div class="panel"><h3>Reportes</h3><p style="color:var(--muted-text);font-weight:700">Listo para integrarse con los reportes de la versión anterior.</p></div>
+        <div class="panel">
+          <h3>Filtros de análisis</h3>
+          <div class="row" style="flex-wrap:wrap;gap:10px">
+            <span class="pill">
+              <label for="repDesde" style="font-weight:800;color:var(--muted-text)">Desde</label>
+              <input type="date" id="repDesde" style="all:unset;border:1px solid var(--line-clr);padding:8px 10px;border-radius:10px;font-weight:800" />
+            </span>
+            <span class="pill">
+              <label for="repHasta" style="font-weight:800;color:var(--muted-text)">Hasta</label>
+              <input type="date" id="repHasta" style="all:unset;border:1px solid var(--line-clr);padding:8px 10px;border-radius:10px;font-weight:800" />
+            </span>
+            <span class="pill">
+              <label for="repCabecera" style="font-weight:800;color:var(--muted-text)">Cabecera</label>
+              <select id="repCabecera" style="all:unset;border:1px solid var(--line-clr);padding:8px 10px;border-radius:10px;min-width:200px;font-weight:800">
+                <option value="">Todas</option>
+              </select>
+            </span>
+            <span class="pill">
+              <label style="display:flex;align-items:center;gap:8px;font-weight:800;color:var(--muted-text)"><input type="checkbox" id="repIncluirBorradores" /> Incluir borradores</label>
+            </span>
+            <button class="chip" id="repClearFilters">Limpiar filtros</button>
+          </div>
+          <p class="import-note">Los filtros impactan en los indicadores, la productividad de rutas y el cumplimiento de órdenes.</p>
+        </div>
+
+        <div class="stats reports" style="margin-top:4px">
+          <div class="card stat">
+            <div class="circle">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-650)" stroke-width="1.8"><path d="M5 12.5l4 4 10-10" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div><div class="value" id="repStatRutas">0</div><div class="label">Rutas aprobadas</div></div>
+          </div>
+          <div class="card stat">
+            <div class="circle">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-650)" stroke-width="1.7"><path d="M12 21l-6-6a6 6 0 1 1 12 0l-6 6z"/><circle cx="12" cy="11" r="2.5"/></svg>
+            </div>
+            <div><div class="value" id="repStatParadas">0</div><div class="label">Paradas servidas</div></div>
+          </div>
+          <div class="card stat">
+            <div class="circle">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-650)" stroke-width="1.8"><path d="M4 18c3.5-5 5.5-5 9-10 2-3 4-4 7-4" stroke-linecap="round"/><path d="M15 14c2 0 4 .5 5 1.5" stroke-linecap="round"/></svg>
+            </div>
+            <div><div class="value" id="repStatKm">0</div><div class="label">Distancia total (km)</div></div>
+          </div>
+          <div class="card stat">
+            <div class="circle">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-650)" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 3" stroke-linecap="round"/></svg>
+            </div>
+            <div><div class="value" id="repStatHoras">0</div><div class="label">Horas operativas</div></div>
+          </div>
+          <div class="card stat">
+            <div class="circle">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-650)" stroke-width="1.7"><path d="M21 11a9 9 0 1 1-9-9" stroke-linecap="round"/><path d="M12 6v5l3 3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div><div class="value" id="repStatCumplimiento">0%</div><div class="label" id="repStatCumplimientoLabel">Cumplimiento de órdenes</div></div>
+          </div>
+        </div>
+
+        <section class="table card" aria-labelledby="repProdTitle">
+          <header>
+            <div>
+              <h3 id="repProdTitle">Productividad de rutas</h3>
+              <p class="import-note" style="margin:6px 0 0">Basado en el historial aprobado e incluye métricas de cada ruta consolidada.</p>
+            </div>
+            <div class="row" style="gap:10px;flex-wrap:wrap;justify-content:flex-end">
+              <div class="search" style="--h:38px;min-width:220px">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                <input id="repRutaSearch" placeholder="Buscar ruta o vehículo" />
+              </div>
+              <span class="chip muted">Registros <strong id="repProductividadCount">0</strong></span>
+              <button class="chip" id="repExportProductividad">Descargar CSV</button>
+            </div>
+          </header>
+          <div class="body">
+            <table aria-describedby="repProdTitle">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Cabecera</th>
+                  <th>Ruta</th>
+                  <th class="right">Camiones</th>
+                  <th class="right">Paradas</th>
+                  <th class="right">Distancia (km)</th>
+                  <th class="right">Tiempo</th>
+                  <th class="right">Monto pico</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody id="repProductividadTbody">
+                <tr><td colspan="9" style="color:var(--muted-text);font-style:italic;">Sin datos para los filtros seleccionados</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="table card" aria-labelledby="repCumTitle">
+          <header>
+            <div>
+              <h3 id="repCumTitle">Cumplimiento de órdenes</h3>
+              <p class="import-note" style="margin:6px 0 0">Las órdenes se agrupan por fecha de servicio. El filtro de cabecera utiliza coincidencias con rutas aprobadas.</p>
+            </div>
+            <div class="row" style="gap:10px;flex-wrap:wrap;justify-content:flex-end">
+              <div class="search" style="--h:38px;min-width:240px">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                <input id="repOrdenSearch" placeholder="Buscar código, nombre o servicio" />
+              </div>
+              <span class="chip muted">Agrupados <strong id="repCumplimientoCount">0</strong></span>
+              <button class="chip" id="repExportCumplimiento">Descargar CSV</button>
+            </div>
+          </header>
+          <div class="body">
+            <table aria-describedby="repCumTitle">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th class="right">Total órdenes</th>
+                  <th class="right">Programadas</th>
+                  <th class="right">Pendientes</th>
+                  <th class="right">Cumplimiento (%)</th>
+                  <th class="right">Monto programado</th>
+                  <th class="right">Monto pendiente</th>
+                  <th class="right">Peso programado (kg)</th>
+                  <th class="right">Peso pendiente (kg)</th>
+                </tr>
+              </thead>
+              <tbody id="repCumplimientoTbody">
+                <tr><td colspan="9" style="color:var(--muted-text);font-style:italic;">Sin órdenes para mostrar</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="table card" aria-labelledby="repPendTitle">
+          <header>
+            <div>
+              <h3 id="repPendTitle">Órdenes pendientes (detalle)</h3>
+              <p class="import-note" style="margin:6px 0 0">Listado de órdenes filtradas que aún no fueron programadas.</p>
+            </div>
+            <div class="row" style="gap:10px;flex-wrap:wrap;justify-content:flex-end">
+              <span class="chip muted">Pendientes <strong id="repPendientesCount">0</strong></span>
+              <button class="chip" id="repExportPendientes">Descargar CSV</button>
+            </div>
+          </header>
+          <div class="body">
+            <table aria-describedby="repPendTitle">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Categoría</th>
+                  <th>Código</th>
+                  <th>Nombre</th>
+                  <th>Servicio</th>
+                  <th class="right">Monto</th>
+                  <th class="right">Peso (kg)</th>
+                </tr>
+              </thead>
+              <tbody id="repPendientesTbody">
+                <tr><td colspan="7" style="color:var(--muted-text);font-style:italic;">No hay órdenes pendientes dentro de los filtros</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
       </section>
 
       <!-- ===== CONFIGURACIÓN ===== -->
@@ -1741,6 +1904,696 @@
   function refreshDashboardMetrics(){ DashboardMetrics.refresh(); }
 
   refreshDashboardMetrics();
+
+  const ReportsModule = (function(){
+    const desdeEl = document.getElementById('repDesde');
+    const hastaEl = document.getElementById('repHasta');
+    const cabSel = document.getElementById('repCabecera');
+    const incluirBorradoresEl = document.getElementById('repIncluirBorradores');
+    const rutaSearchEl = document.getElementById('repRutaSearch');
+    const ordenSearchEl = document.getElementById('repOrdenSearch');
+    const clearBtn = document.getElementById('repClearFilters');
+
+    const statsEls = {
+      rutas: document.getElementById('repStatRutas'),
+      paradas: document.getElementById('repStatParadas'),
+      km: document.getElementById('repStatKm'),
+      horas: document.getElementById('repStatHoras'),
+      cumplimiento: document.getElementById('repStatCumplimiento')
+    };
+    const statCumLabel = document.getElementById('repStatCumplimientoLabel');
+
+    const prodBody = document.getElementById('repProductividadTbody');
+    const prodCount = document.getElementById('repProductividadCount');
+    const cumBody = document.getElementById('repCumplimientoTbody');
+    const cumCount = document.getElementById('repCumplimientoCount');
+    const pendBody = document.getElementById('repPendientesTbody');
+    const pendCount = document.getElementById('repPendientesCount');
+
+    const exportProdBtn = document.getElementById('repExportProductividad');
+    const exportCumBtn = document.getElementById('repExportCumplimiento');
+    const exportPendBtn = document.getElementById('repExportPendientes');
+
+    let lastProductRows = [];
+    let lastCumRows = [];
+    let lastPendRows = [];
+
+    function normalizeCode(value){
+      if(value === null || value === undefined) return '';
+      return String(value).trim();
+    }
+
+    function parseDateValue(value, endOfDay = false){
+      if(!value) return null;
+      const date = new Date(value);
+      if(Number.isNaN(date.getTime())) return null;
+      if(endOfDay){
+        date.setHours(23, 59, 59, 999);
+      }else{
+        date.setHours(0, 0, 0, 0);
+      }
+      return date.getTime();
+    }
+
+    function matchesDateRange(dateStr, fromTs, toTs){
+      if(fromTs === null && toTs === null) return true;
+      const time = dateStr ? Date.parse(dateStr) : NaN;
+      if(Number.isNaN(time)){
+        return false;
+      }
+      if(fromTs !== null && time < fromTs) return false;
+      if(toTs !== null && time > toTs) return false;
+      return true;
+    }
+
+    function formatDateLabel(value){
+      if(!value){
+        return '—';
+      }
+      const date = new Date(value);
+      if(Number.isNaN(date.getTime())){
+        return String(value);
+      }
+      return date.toLocaleDateString('es-AR');
+    }
+
+    function timeToMinutes(value){
+      if(value === null || value === undefined) return 0;
+      if(typeof value === 'number' && Number.isFinite(value)){
+        return Math.max(0, Math.round(value));
+      }
+      const str = String(value).trim();
+      if(!str) return 0;
+      const colon = str.match(/(\d{1,3})\s*:\s*(\d{1,2})/);
+      if(colon){
+        const hours = parseInt(colon[1], 10);
+        const minutes = parseInt(colon[2], 10);
+        if(Number.isFinite(hours) && Number.isFinite(minutes)){
+          return hours * 60 + minutes;
+        }
+      }
+      const hourMatch = str.match(/(\d+(?:[.,]\d+)?)\s*h/);
+      if(hourMatch){
+        const num = parseFloat(hourMatch[1].replace(',', '.'));
+        if(Number.isFinite(num)){
+          return Math.round(num * 60);
+        }
+      }
+      const minuteMatch = str.match(/(\d+(?:[.,]\d+)?)\s*m/);
+      if(minuteMatch){
+        const num = parseFloat(minuteMatch[1].replace(',', '.'));
+        if(Number.isFinite(num)){
+          return Math.round(num);
+        }
+      }
+      const numeric = parseFloat(str.replace(',', '.'));
+      if(Number.isFinite(numeric)){
+        return numeric <= 24 ? Math.round(numeric * 60) : Math.round(numeric);
+      }
+      return 0;
+    }
+
+    function gatherRoutePoints(entry){
+      if(entry && Array.isArray(entry.puntos)){
+        return entry.puntos.filter(Boolean);
+      }
+      if(entry && Array.isArray(entry.rutas)){
+        const pts = [];
+        entry.rutas.forEach(route => {
+          if(Array.isArray(route)){
+            route.forEach(p => { if(p) pts.push(p); });
+          }
+        });
+        return pts;
+      }
+      return [];
+    }
+
+    function countRouteStops(entry){
+      if(entry && Number.isFinite(entry.totalPuntos)){
+        return entry.totalPuntos;
+      }
+      return gatherRoutePoints(entry).length;
+    }
+
+    function computeRouteCamiones(entry){
+      const raw = entry?.camiones;
+      const parsed = parseInt(raw, 10);
+      if(Number.isFinite(parsed) && parsed > 0){
+        return parsed;
+      }
+      if(Array.isArray(entry?.rutas)){
+        const used = entry.rutas.filter(route => Array.isArray(route) && route.length > 0).length;
+        if(used > 0){
+          return used;
+        }
+      }
+      return countRouteStops(entry) > 0 ? 1 : 0;
+    }
+
+    function computeRouteMonto(entry){
+      const raw = entry?.montoPico ?? entry?.monto ?? entry?.montoTotal;
+      const monto = parseNumber(raw);
+      return Number.isFinite(monto) ? Math.abs(monto) : null;
+    }
+
+    function computeRouteDist(entry){
+      const dist = parseNumber(entry?.distKm);
+      return Number.isFinite(dist) ? dist : null;
+    }
+
+    function computeRouteMinutes(entry){
+      return timeToMinutes(entry?.tiempo);
+    }
+
+    function getCabName(code){
+      const normalized = normalizeCode(code);
+      if(!normalized) return '—';
+      if(Array.isArray(State.cab)){
+        const cab = State.cab.find(c => normalizeCode(c?.codigo) === normalized);
+        if(cab){
+          const nombre = cab.nombre ? String(cab.nombre).trim() : '';
+          if(nombre){
+            return nombre;
+          }
+        }
+      }
+      return normalized;
+    }
+
+    function getRouteName(entry){
+      if(!entry) return 'Ruta';
+      const nombre = entry.nombre ? String(entry.nombre).trim() : '';
+      if(nombre) return nombre;
+      const origen = getCabName(entry.origen);
+      return `Ruta ${origen}`;
+    }
+
+    function ensureCabOptions(){
+      if(!cabSel) return;
+      const current = cabSel.value;
+      const map = new Map();
+      if(Array.isArray(State.cab)){
+        State.cab.forEach(cab => {
+          if(!cab) return;
+          const codigo = normalizeCode(cab.codigo);
+          if(!codigo || map.has(codigo)) return;
+          map.set(codigo, {
+            codigo,
+            nombre: cab.nombre ? String(cab.nombre).trim() : ''
+          });
+        });
+      }
+      const entries = Array.from(map.values()).sort((a, b) => {
+        const aName = a.nombre || a.codigo;
+        const bName = b.nombre || b.codigo;
+        return aName.localeCompare(bName, 'es', { sensitivity: 'base' });
+      });
+      const options = ['<option value="">Todas</option>'];
+      entries.forEach(item => {
+        options.push(`<option value="${sanitizeHTML(item.codigo)}">${sanitizeHTML(item.nombre || item.codigo)}</option>`);
+      });
+      cabSel.innerHTML = options.join('');
+      if(current && map.has(current)){
+        cabSel.value = current;
+      }
+    }
+
+    function collectAllDates(){
+      const dates = [];
+      if(Array.isArray(State.hist)){
+        State.hist.forEach(entry => {
+          if(entry && entry.fecha){
+            const ts = Date.parse(entry.fecha);
+            if(Number.isFinite(ts)) dates.push(ts);
+          }
+        });
+      }
+      if(Array.isArray(State.ord)){
+        State.ord.forEach(entry => {
+          if(entry && entry.fecha){
+            const ts = Date.parse(entry.fecha);
+            if(Number.isFinite(ts)) dates.push(ts);
+          }
+        });
+      }
+      return dates;
+    }
+
+    function ensureDefaultDates(){
+      if(!desdeEl && !hastaEl) return;
+      const dates = collectAllDates();
+      if(!dates.length){
+        const todayIso = new Date().toISOString().slice(0, 10);
+        if(desdeEl && !desdeEl.value) desdeEl.value = todayIso;
+        if(hastaEl && !hastaEl.value) hastaEl.value = todayIso;
+        return;
+      }
+      const maxTs = Math.max(...dates);
+      const minTs = Math.min(...dates);
+      const maxDateIso = new Date(maxTs).toISOString().slice(0, 10);
+      const start = new Date(maxTs);
+      start.setDate(start.getDate() - 30);
+      if(start.getTime() < minTs){
+        start.setTime(minTs);
+      }
+      const startIso = start.toISOString().slice(0, 10);
+      if(desdeEl && !desdeEl.value) desdeEl.value = startIso;
+      if(hastaEl && !hastaEl.value) hastaEl.value = maxDateIso;
+    }
+
+    function getFilteredRoutes(){
+      const includeDrafts = !!incluirBorradoresEl?.checked;
+      const cabFilter = cabSel ? normalizeCode(cabSel.value) : '';
+      const searchTerm = (rutaSearchEl?.value || '').trim().toLowerCase();
+      const fromTs = parseDateValue(desdeEl?.value, false);
+      const toTs = parseDateValue(hastaEl?.value, true);
+      const routes = Array.isArray(State.hist) ? State.hist : [];
+      return routes.filter(entry => {
+        if(!entry) return false;
+        if(!includeDrafts && !entry.aprobado) return false;
+        if((fromTs !== null || toTs !== null) && !matchesDateRange(entry.fecha || '', fromTs, toTs)){
+          return false;
+        }
+        if(cabFilter && normalizeCode(entry.origen) !== cabFilter){
+          return false;
+        }
+        if(searchTerm){
+          const nombre = entry.nombre ? String(entry.nombre).toLowerCase() : '';
+          const etiqueta = entry.camionEtiqueta ? String(entry.camionEtiqueta).toLowerCase() : '';
+          const modelo = entry.camionModelo ? String(entry.camionModelo).toLowerCase() : '';
+          if(!nombre.includes(searchTerm) && !etiqueta.includes(searchTerm) && !modelo.includes(searchTerm)){
+            return false;
+          }
+        }
+        return true;
+      });
+    }
+
+    function buildProductRows(routes){
+      return routes.map(entry => {
+        const fechaRaw = entry?.fecha || '';
+        const minutos = computeRouteMinutes(entry);
+        const dist = computeRouteDist(entry);
+        const monto = computeRouteMonto(entry);
+        const camiones = computeRouteCamiones(entry);
+        const paradas = countRouteStops(entry);
+        const tiempoLabel = (() => {
+          const raw = entry?.tiempo;
+          if(raw && String(raw).trim()){
+            return String(raw).trim();
+          }
+          return fmtMinutes(minutos);
+        })();
+        return {
+          id: entry?.id || '',
+          fechaRaw,
+          fecha: formatDateLabel(fechaRaw),
+          cabecera: getCabName(entry?.origen),
+          nombre: getRouteName(entry),
+          camiones,
+          paradas,
+          distKm: dist,
+          minutos,
+          tiempo: tiempoLabel,
+          monto,
+          estado: entry?.aprobado ? 'Aprobado' : 'Borrador'
+        };
+      });
+    }
+
+    function computeOrders(filteredRoutes){
+      const cabFilter = cabSel ? normalizeCode(cabSel.value) : '';
+      const fromTs = parseDateValue(desdeEl?.value, false);
+      const toTs = parseDateValue(hastaEl?.value, true);
+      const searchTerm = (ordenSearchEl?.value || '').trim().toLowerCase();
+      const servedCodes = new Set();
+      if(cabFilter){
+        filteredRoutes.forEach(route => {
+          gatherRoutePoints(route).forEach(pt => {
+            const code = normalizeCode(pt?.codigo);
+            if(code){
+              servedCodes.add(code);
+            }
+          });
+        });
+      }
+      const orders = Array.isArray(State.ord) ? State.ord : [];
+      const filteredOrders = [];
+      orders.forEach(ord => {
+        if(!ord) return;
+        const fecha = ord.fecha || '';
+        if((fromTs !== null || toTs !== null) && !matchesDateRange(fecha, fromTs, toTs)){
+          return;
+        }
+        if(searchTerm){
+          const matches = [ord.codigo, ord.nombre, ord.categoria, ord.servicio].some(field => {
+            if(field === null || field === undefined) return false;
+            return String(field).toLowerCase().includes(searchTerm);
+          });
+          if(!matches) return;
+        }
+        if(cabFilter){
+          const code = normalizeCode(ord.codigo);
+          if(!code || !servedCodes.has(code)){
+            return;
+          }
+        }
+        filteredOrders.push(ord);
+      });
+
+      const aggregatedMap = new Map();
+      let servedCount = 0;
+      let pendingCount = 0;
+      filteredOrders.forEach(ord => {
+        const key = ord.fecha || 'Sin fecha';
+        if(!aggregatedMap.has(key)){
+          aggregatedMap.set(key, {
+            fecha: ord.fecha || '',
+            fechaLabel: formatDateLabel(ord.fecha || ''),
+            total: 0,
+            programadas: 0,
+            pendientes: 0,
+            montoProgramado: 0,
+            montoPendiente: 0,
+            pesoProgramado: 0,
+            pesoPendiente: 0
+          });
+        }
+        const bucket = aggregatedMap.get(key);
+        bucket.total += 1;
+        const monto = parseNumber(ord.monto);
+        const montoAbs = Number.isFinite(monto) ? Math.abs(monto) : 0;
+        const peso = parseNumber(ord.peso);
+        const pesoAbs = Number.isFinite(peso) ? Math.abs(peso) : 0;
+        if(ord.usar){
+          bucket.programadas += 1;
+          bucket.montoProgramado += montoAbs;
+          bucket.pesoProgramado += pesoAbs;
+          servedCount += 1;
+        }else{
+          bucket.pendientes += 1;
+          bucket.montoPendiente += montoAbs;
+          bucket.pesoPendiente += pesoAbs;
+          pendingCount += 1;
+        }
+      });
+
+      const aggregatedRows = Array.from(aggregatedMap.values()).map(row => {
+        const cumplimiento = row.total ? (row.programadas / row.total * 100) : 0;
+        return Object.assign(row, { cumplimiento });
+      });
+
+      aggregatedRows.sort((a, b) => {
+        const da = a.fecha ? Date.parse(a.fecha) : NaN;
+        const db = b.fecha ? Date.parse(b.fecha) : NaN;
+        if(Number.isFinite(da) && Number.isFinite(db)){
+          return db - da;
+        }
+        if(Number.isFinite(db)) return 1;
+        if(Number.isFinite(da)) return -1;
+        return (b.fecha || '').localeCompare(a.fecha || '');
+      });
+
+      const pendingDetail = filteredOrders
+        .filter(ord => !ord.usar)
+        .map(ord => {
+          const monto = parseNumber(ord.monto);
+          const peso = parseNumber(ord.peso);
+          return {
+            fechaRaw: ord.fecha || '',
+            fecha: formatDateLabel(ord.fecha || ''),
+            categoria: ord.categoria ? String(ord.categoria) : '',
+            codigo: normalizeCode(ord.codigo),
+            nombre: ord.nombre ? String(ord.nombre) : '',
+            servicio: ord.servicio ? String(ord.servicio) : '',
+            monto: Number.isFinite(monto) ? Math.abs(monto) : null,
+            peso: Number.isFinite(peso) ? Math.abs(peso) : null
+          };
+        });
+
+      pendingDetail.sort((a, b) => {
+        const da = a.fechaRaw ? Date.parse(a.fechaRaw) : NaN;
+        const db = b.fechaRaw ? Date.parse(b.fechaRaw) : NaN;
+        if(Number.isFinite(da) && Number.isFinite(db)){
+          return db - da;
+        }
+        if(Number.isFinite(db)) return 1;
+        if(Number.isFinite(da)) return -1;
+        return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
+      });
+
+      const summary = {
+        total: filteredOrders.length,
+        programadas: servedCount,
+        pendientes: pendingCount
+      };
+
+      return { aggregated: aggregatedRows, pending: pendingDetail, summary };
+    }
+
+    function renderProductTable(rows){
+      if(!prodBody) return;
+      if(!rows.length){
+        prodBody.innerHTML = `<tr><td colspan="9" style="color:var(--muted-text);font-style:italic;">Sin datos para los filtros seleccionados</td></tr>`;
+      }else{
+        prodBody.innerHTML = rows.map(row => {
+          const camionesLabel = Number.isFinite(row.camiones) ? fmtES.format(row.camiones) : '—';
+          const paradasLabel = Number.isFinite(row.paradas) ? fmtES.format(row.paradas) : '—';
+          const distLabel = Number.isFinite(row.distKm) ? fmtES.format(Math.round(row.distKm * 10) / 10) : '—';
+          const montoLabel = row.monto !== null && row.monto !== undefined ? fmtMoney(row.monto) : '—';
+          return `<tr>
+            <td>${sanitizeHTML(row.fecha)}</td>
+            <td>${sanitizeHTML(row.cabecera)}</td>
+            <td>${sanitizeHTML(row.nombre)}</td>
+            <td class="right">${camionesLabel}</td>
+            <td class="right">${paradasLabel}</td>
+            <td class="right">${distLabel}</td>
+            <td class="right">${sanitizeHTML(row.tiempo)}</td>
+            <td class="right">${montoLabel}</td>
+            <td>${sanitizeHTML(row.estado)}</td>
+          </tr>`;
+        }).join('');
+      }
+      if(prodCount){
+        prodCount.textContent = rows.length.toLocaleString('es-AR');
+      }
+    }
+
+    function renderCumplimientoTable(rows){
+      if(!cumBody) return;
+      if(!rows.length){
+        cumBody.innerHTML = `<tr><td colspan="9" style="color:var(--muted-text);font-style:italic;">Sin órdenes para mostrar</td></tr>`;
+      }else{
+        cumBody.innerHTML = rows.map(row => {
+          const cumplimientoLabel = row.total
+            ? row.cumplimiento.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %'
+            : '0,0 %';
+          const totalLabel = row.total.toLocaleString('es-AR');
+          const programadasLabel = row.programadas.toLocaleString('es-AR');
+          const pendientesLabel = row.pendientes.toLocaleString('es-AR');
+          const montoProgLabel = fmtMoney(row.montoProgramado || 0);
+          const montoPendLabel = fmtMoney(row.montoPendiente || 0);
+          const pesoProgLabel = fmtES.format(Math.round((row.pesoProgramado || 0) * 10) / 10);
+          const pesoPendLabel = fmtES.format(Math.round((row.pesoPendiente || 0) * 10) / 10);
+          return `<tr>
+            <td>${sanitizeHTML(row.fechaLabel)}</td>
+            <td class="right">${totalLabel}</td>
+            <td class="right">${programadasLabel}</td>
+            <td class="right">${pendientesLabel}</td>
+            <td class="right">${cumplimientoLabel}</td>
+            <td class="right">${montoProgLabel}</td>
+            <td class="right">${montoPendLabel}</td>
+            <td class="right">${pesoProgLabel}</td>
+            <td class="right">${pesoPendLabel}</td>
+          </tr>`;
+        }).join('');
+      }
+      if(cumCount){
+        cumCount.textContent = rows.length.toLocaleString('es-AR');
+      }
+    }
+
+    function renderPendientesTable(rows){
+      if(!pendBody) return;
+      if(!rows.length){
+        pendBody.innerHTML = `<tr><td colspan="7" style="color:var(--muted-text);font-style:italic;">No hay órdenes pendientes dentro de los filtros</td></tr>`;
+      }else{
+        pendBody.innerHTML = rows.map(row => {
+          const montoLabel = row.monto !== null && row.monto !== undefined ? fmtMoney(row.monto) : '—';
+          const pesoLabel = row.peso !== null && row.peso !== undefined
+            ? fmtES.format(Math.round(row.peso * 10) / 10)
+            : '—';
+          return `<tr>
+            <td>${sanitizeHTML(row.fecha)}</td>
+            <td>${sanitizeHTML(row.categoria)}</td>
+            <td>${sanitizeHTML(row.codigo)}</td>
+            <td>${sanitizeHTML(row.nombre)}</td>
+            <td>${sanitizeHTML(row.servicio)}</td>
+            <td class="right">${montoLabel}</td>
+            <td class="right">${pesoLabel}</td>
+          </tr>`;
+        }).join('');
+      }
+      if(pendCount){
+        pendCount.textContent = rows.length.toLocaleString('es-AR');
+      }
+    }
+
+    function updateStats(productRows, summary){
+      const totalRoutes = productRows.length;
+      const totalParadas = productRows.reduce((acc, row) => acc + (Number.isFinite(row.paradas) ? row.paradas : 0), 0);
+      const totalKm = productRows.reduce((acc, row) => acc + (Number.isFinite(row.distKm) ? row.distKm : 0), 0);
+      const totalMinutes = productRows.reduce((acc, row) => acc + (Number.isFinite(row.minutos) ? row.minutos : 0), 0);
+      const served = summary.programadas || 0;
+      const totalOrders = summary.total || 0;
+      const pending = summary.pendientes || 0;
+      const cumplimientoPct = totalOrders ? (served / totalOrders * 100) : 0;
+
+      if(statsEls.rutas){
+        statsEls.rutas.textContent = totalRoutes.toLocaleString('es-AR');
+      }
+      if(statsEls.paradas){
+        statsEls.paradas.textContent = totalParadas.toLocaleString('es-AR');
+      }
+      if(statsEls.km){
+        const kmRounded = Math.round(totalKm * 10) / 10;
+        statsEls.km.textContent = fmtES.format(kmRounded);
+      }
+      if(statsEls.horas){
+        statsEls.horas.textContent = fmtMinutes(totalMinutes);
+      }
+      if(statsEls.cumplimiento){
+        statsEls.cumplimiento.textContent = `${cumplimientoPct.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+      }
+      if(statCumLabel){
+        statCumLabel.textContent = totalOrders
+          ? `Cumplimiento — ${served}/${totalOrders} órdenes (${pending} pendientes)`
+          : 'Cumplimiento de órdenes';
+      }
+    }
+
+    function redraw(){
+      ensureDefaultDates();
+      const routes = getFilteredRoutes();
+      const productRows = buildProductRows(routes);
+      lastProductRows = productRows;
+      renderProductTable(productRows);
+      const ordersData = computeOrders(routes);
+      lastCumRows = ordersData.aggregated;
+      lastPendRows = ordersData.pending;
+      renderCumplimientoTable(lastCumRows);
+      renderPendientesTable(lastPendRows);
+      updateStats(productRows, ordersData.summary);
+    }
+
+    function handleExportProduct(){
+      if(!lastProductRows.length){
+        showToast('No hay datos de productividad para exportar');
+        return;
+      }
+      const rows = lastProductRows.map(row => ({
+        'Fecha': row.fechaRaw || row.fecha,
+        'Cabecera': row.cabecera,
+        'Ruta': row.nombre,
+        'Camiones': row.camiones,
+        'Paradas': row.paradas,
+        'Distancia_km': Number.isFinite(row.distKm) ? (Math.round(row.distKm * 100) / 100) : '',
+        'Tiempo_min': row.minutos,
+        'Tiempo_formateado': row.tiempo,
+        'Monto_pico': row.monto ?? '',
+        'Estado': row.estado
+      }));
+      csvExport(rows, ['Fecha','Cabecera','Ruta','Camiones','Paradas','Distancia_km','Tiempo_min','Tiempo_formateado','Monto_pico','Estado']);
+      showToast('Reporte de productividad descargado');
+    }
+
+    function handleExportCumplimiento(){
+      if(!lastCumRows.length){
+        showToast('No hay datos de cumplimiento para exportar');
+        return;
+      }
+      const rows = lastCumRows.map(row => ({
+        'Fecha': row.fecha || row.fechaLabel,
+        'Fecha_legible': row.fechaLabel,
+        'Total_ordenes': row.total,
+        'Programadas': row.programadas,
+        'Pendientes': row.pendientes,
+        'Cumplimiento_pct': Number.isFinite(row.cumplimiento) ? (row.cumplimiento.toFixed(2)) : '',
+        'Monto_programado': row.montoProgramado,
+        'Monto_pendiente': row.montoPendiente,
+        'Peso_programado_kg': row.pesoProgramado,
+        'Peso_pendiente_kg': row.pesoPendiente
+      }));
+      csvExport(rows, ['Fecha','Fecha_legible','Total_ordenes','Programadas','Pendientes','Cumplimiento_pct','Monto_programado','Monto_pendiente','Peso_programado_kg','Peso_pendiente_kg']);
+      showToast('Reporte de cumplimiento descargado');
+    }
+
+    function handleExportPendientes(){
+      if(!lastPendRows.length){
+        showToast('No hay órdenes pendientes para exportar');
+        return;
+      }
+      const rows = lastPendRows.map(row => ({
+        'Fecha': row.fechaRaw || row.fecha,
+        'Fecha_legible': row.fecha,
+        'Categoria': row.categoria,
+        'Codigo': row.codigo,
+        'Nombre': row.nombre,
+        'Servicio': row.servicio,
+        'Monto': row.monto ?? '',
+        'Peso_kg': row.peso ?? ''
+      }));
+      csvExport(rows, ['Fecha','Fecha_legible','Categoria','Codigo','Nombre','Servicio','Monto','Peso_kg']);
+      showToast('Detalle de pendientes descargado');
+    }
+
+    function attachEvents(){
+      if(desdeEl) desdeEl.addEventListener('change', redraw);
+      if(hastaEl) hastaEl.addEventListener('change', redraw);
+      if(cabSel) cabSel.addEventListener('change', redraw);
+      if(incluirBorradoresEl) incluirBorradoresEl.addEventListener('change', redraw);
+      if(rutaSearchEl) rutaSearchEl.addEventListener('input', redraw);
+      if(ordenSearchEl) ordenSearchEl.addEventListener('input', redraw);
+      if(clearBtn){
+        clearBtn.addEventListener('click', () => {
+          if(desdeEl) desdeEl.value = '';
+          if(hastaEl) hastaEl.value = '';
+          if(cabSel) cabSel.value = '';
+          if(incluirBorradoresEl) incluirBorradoresEl.checked = false;
+          if(rutaSearchEl) rutaSearchEl.value = '';
+          if(ordenSearchEl) ordenSearchEl.value = '';
+          ensureDefaultDates();
+          redraw();
+        });
+      }
+      if(exportProdBtn) exportProdBtn.addEventListener('click', handleExportProduct);
+      if(exportCumBtn) exportCumBtn.addEventListener('click', handleExportCumplimiento);
+      if(exportPendBtn) exportPendBtn.addEventListener('click', handleExportPendientes);
+    }
+
+    attachEvents();
+    ensureCabOptions();
+    ensureDefaultDates();
+    redraw();
+
+    return {
+      refresh: redraw,
+      syncCabOptions: ensureCabOptions
+    };
+  })();
+
+  document.addEventListener('data:updated', (ev) => {
+    const scope = ev?.detail?.scope;
+    if(!scope || scope === 'cabeceras'){
+      ReportsModule.syncCabOptions();
+      ReportsModule.refresh();
+      return;
+    }
+    if(scope === 'historial' || scope === 'ordenes'){
+      ReportsModule.refresh();
+    }
+  });
 
   const duplicateTracker = new Map();
   function warnDuplicates(scope, count){
