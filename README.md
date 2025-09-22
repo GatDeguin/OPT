@@ -8,3 +8,5 @@
 - [ ] Dejar la cabecera sin seleccionar, agregar varios puntos a la ruta y verificar que el resumen muestra guiones en tiempo/monto mientras se muestra un aviso pidiendo elegir cabecera; los botones **Optimizar** y **Exportar** deben permanecer deshabilitados.
 - [ ] Importar un CSV de órdenes con algunas filas marcadas como **usar** pero sin coordenadas. Al cargarlo debe mostrarse un aviso y las órdenes sin lat/lng no deben aparecer en la lista ni agregarse a la ruta.
 - [ ] En la vista de rutas, cargar varias paradas y presionar **Limpiar**. Cancelar el diálogo de confirmación debe mantener intacta la lista de paradas actual.
+- [ ] Intentar importar un CSV de sucursales al que se le haya quitado la columna **lat**. Debe mostrarse el mensaje “Falta columna lat” y no se deben modificar los datos almacenados.
+- [ ] Intentar importar un CSV de camiones sin la columna **capMonto**. Debe mostrarse el mensaje “Falta columna capMonto” y la tabla de camiones debe permanecer sin cambios.
