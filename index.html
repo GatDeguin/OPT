@@ -789,7 +789,7 @@
         <section class="card" style="margin-top:6px">
           <div class="card-body" style="overflow:auto; max-height:460px">
             <table class="table" id="cabTable" role="grid" aria-label="Listado de Cabeceras" style="border:0">
-              <thead><tr><th>Código</th><th>Nombre</th><th>Dirección</th><th>Localidad</th><th>Lat</th><th>Lng</th><th>Supervisor</th><th>Teléfono</th></tr></thead>
+              <thead><tr><th>Código</th><th>Nombre</th><th>Dirección</th><th>Localidad</th><th>Lat</th><th>Lng</th><th>Supervisor</th><th>Teléfono</th><th>Acciones</th></tr></thead>
               <tbody id="cabTbody"></tbody>
             </table>
           </div>
@@ -1727,18 +1727,49 @@
       const q = (qEl.value||'').toLowerCase();
       const arr = State.cab.filter(r => !q || Object.values(r).some(v => (''+v).toLowerCase().includes(q)));
       cntEl.textContent = arr.length;
-      tbody.innerHTML = arr.map(r => `
-        <tr>
-          <td>${r.codigo}</td>
-          <td>${r.nombre||''}</td>
-          <td>${r.direccion||''}</td>
-          <td>${r.localidad||''}</td>
-          <td class="right">${fmtCoord(r.lat)}</td>
-          <td class="right">${fmtCoord(r.lng)}</td>
-          <td>${r.supervisor||''}</td>
-          <td>${r.telefono||''}</td>
-        </tr>
-      `).join('');
+      const rows = arr.map(rec => ({ rec, idx: State.cab.indexOf(rec) })).filter(row => row.idx >= 0);
+      tbody.innerHTML = rows.map(({rec, idx}) => {
+        const codigo = sanitizeHTML(rec.codigo || '');
+        const nombre = sanitizeHTML(rec.nombre || '');
+        const direccion = sanitizeHTML(rec.direccion || '');
+        const localidad = sanitizeHTML(rec.localidad || '');
+        const lat = sanitizeHTML(fmtCoord(rec.lat));
+        const lng = sanitizeHTML(fmtCoord(rec.lng));
+        const supervisor = sanitizeHTML(rec.supervisor || '');
+        const telefono = sanitizeHTML(rec.telefono || '');
+        return `
+          <tr data-index="${idx}">
+            <td>${codigo}</td>
+            <td>${nombre}</td>
+            <td>${direccion}</td>
+            <td>${localidad}</td>
+            <td class="right">${lat}</td>
+            <td class="right">${lng}</td>
+            <td>${supervisor}</td>
+            <td>${telefono}</td>
+            <td>
+              <div class="row" style="gap:8px;flex-wrap:nowrap">
+                <button class="chip" data-act="edit">Editar</button>
+                <button class="chip" data-act="del">Eliminar</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      Array.from(tbody.querySelectorAll('tr')).forEach((tr, i)=>{
+        const row = rows[i];
+        if(!row) return;
+        tr.querySelector('button[data-act="edit"]')?.addEventListener('click', (ev)=>{
+          ev.preventDefault();
+          ev.stopPropagation();
+          editCabecera(row.idx);
+        });
+        tr.querySelector('button[data-act="del"]')?.addEventListener('click', (ev)=>{
+          ev.preventDefault();
+          ev.stopPropagation();
+          deleteCabecera(row.idx);
+        });
+      });
       if(selOrigen){
         const prev = selOrigen.value;
         const validCab = State.cab.filter(c => Number.isFinite(parseNumber(c.lat)) && Number.isFinite(parseNumber(c.lng)));
@@ -1753,6 +1784,89 @@
       notifyDataUpdate('cabeceras');
     }
     qEl?.addEventListener('input', render);
+
+    function editCabecera(idx){
+      const current = State.cab[idx];
+      if(!current) return;
+      const latVal = Number.isFinite(parseNumber(current.lat)) ? String(current.lat) : '';
+      const lngVal = Number.isFinite(parseNumber(current.lng)) ? String(current.lng) : '';
+      const html = `
+        <div class="field"><label>Código</label><input id="cabEditCodigo" value="${sanitizeHTML(current.codigo || '')}"></div>
+        <div class="field"><label>Nombre</label><input id="cabEditNombre" value="${sanitizeHTML(current.nombre || '')}"></div>
+        <div class="field"><label>Dirección</label><input id="cabEditDireccion" value="${sanitizeHTML(current.direccion || '')}"></div>
+        <div class="field"><label>Localidad</label><input id="cabEditLocalidad" value="${sanitizeHTML(current.localidad || '')}"></div>
+        <div class="field"><label>Lat</label><input id="cabEditLat" value="${sanitizeHTML(latVal)}" placeholder="-34.6037"></div>
+        <div class="field"><label>Lng</label><input id="cabEditLng" value="${sanitizeHTML(lngVal)}" placeholder="-58.3816"></div>
+        <div class="field"><label>Supervisor</label><input id="cabEditSupervisor" value="${sanitizeHTML(current.supervisor || '')}"></div>
+        <div class="field"><label>Teléfono</label><input id="cabEditTelefono" value="${sanitizeHTML(current.telefono || '')}"></div>
+      `;
+      openSmallModal('Editar cabecera', html, ()=>{
+        const codigo = (document.getElementById('cabEditCodigo')?.value || '').trim();
+        const nombre = (document.getElementById('cabEditNombre')?.value || '').trim();
+        const direccion = (document.getElementById('cabEditDireccion')?.value || '').trim();
+        const localidad = (document.getElementById('cabEditLocalidad')?.value || '').trim();
+        const supervisor = (document.getElementById('cabEditSupervisor')?.value || '').trim();
+        const telefono = (document.getElementById('cabEditTelefono')?.value || '').trim();
+        const lat = parseNumber(document.getElementById('cabEditLat')?.value);
+        const lng = parseNumber(document.getElementById('cabEditLng')?.value);
+        if(!codigo || !nombre){ showToast('Completá código y nombre'); return false; }
+        if(!Number.isFinite(lat) || !Number.isFinite(lng)){ showToast('Ingresá coordenadas válidas'); return false; }
+        const duplicate = State.cab.some((c, i)=> i !== idx && String(c.codigo || '').trim().toLowerCase() === codigo.toLowerCase());
+        if(duplicate){ showToast('Ya existe una cabecera con ese código'); return false; }
+        const oldCodigo = current.codigo;
+        const wasSelected = selOrigen && String(selOrigen.value || '').trim() === String(oldCodigo || '').trim();
+        Object.assign(current, { codigo, nombre, direccion, localidad, lat, lng, supervisor, telefono });
+        save(DB.cab, State.cab);
+        render();
+        if(wasSelected && selOrigen){
+          selOrigen.value = codigo;
+          selOrigen.dispatchEvent(new Event('change'));
+        }
+        showToast('Cabecera actualizada');
+        return true;
+      });
+    }
+
+    function hasActiveRouteForCab(codigo){
+      if(!codigo) return false;
+      const normalized = String(codigo).trim();
+      if(!normalized) return false;
+      const today = new Date().toISOString().slice(0,10);
+      return State.hist.some(entry => {
+        if(!entry || String(entry.origen || '').trim() !== normalized) return false;
+        if(entry.enCurso === true || entry.activa === true) return true;
+        if(entry.finalizada === true || entry.cerrada === true) return false;
+        if(entry.aprobado && entry.fecha && typeof entry.fecha === 'string'){
+          return entry.fecha.slice(0,10) === today;
+        }
+        return false;
+      });
+    }
+
+    function deleteCabecera(idx){
+      const current = State.cab[idx];
+      if(!current) return;
+      const codigo = String(current.codigo || '').trim();
+      if(selOrigen && selOrigen.value === codigo){
+        showToast('No podés eliminar una cabecera asignada a la ruta activa.');
+        return;
+      }
+      if(hasActiveRouteForCab(codigo)){
+        showToast('No podés eliminar la cabecera porque está asignada a rutas activas.');
+        return;
+      }
+      const label = [current.codigo, current.nombre].filter(Boolean).join(' — ');
+      if(!confirm(`¿Eliminar cabecera${label ? ` ${label}` : ''}?`)) return;
+      const wasSelected = selOrigen && selOrigen.value === codigo;
+      State.cab.splice(idx, 1);
+      save(DB.cab, State.cab);
+      render();
+      if(wasSelected && selOrigen){
+        selOrigen.value = '';
+        selOrigen.dispatchEvent(new Event('change'));
+      }
+      showToast('Cabecera eliminada');
+    }
 
     document.getElementById('cabImport')?.addEventListener('click', ()=> document.getElementById('cabImportInput').click());
     document.getElementById('cabImportInput')?.addEventListener('change', (ev)=>{
