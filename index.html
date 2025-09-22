@@ -149,6 +149,19 @@
     .content{padding:22px;display:grid;gap:18px;grid-template-columns:1fr}
     .hidden{display:none !important}
 
+    .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,16px);padding:10px 16px;border-radius:12px;background:rgba(15,23,42,.92);color:#fff;display:flex;gap:12px;align-items:center;font-weight:700;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .2s ease, transform .2s ease;z-index:500;font-size:14px;line-height:1.4}
+    .toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+    html[data-theme="dark"] .toast{background:rgba(234,238,243,.92);color:#0f1720;box-shadow:0 14px 26px rgba(0,0,0,.35)}
+    .toast span{flex:1}
+    .toast button{appearance:none;border:0;border-radius:8px;padding:6px 12px;font-weight:800;background:rgba(255,255,255,.18);color:inherit;cursor:pointer;transition:background .18s ease, transform .15s ease}
+    html[data-theme="dark"] .toast button{background:rgba(15,23,42,.12)}
+    .toast button:hover{transform:translateY(-1px);background:rgba(255,255,255,.25)}
+    html[data-theme="dark"] .toast button:hover{background:rgba(15,23,42,.18)}
+    .toast button:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+
+    .import-note{margin-top:6px;font-size:12px;color:var(--muted-text);display:flex;align-items:center;gap:6px;font-weight:600;line-height:1.5}
+    .card > .import-note{padding:0 16px}
+
     /* ====== Cards / tablas ====== */
     .card{background:var(--card);border-radius:var(--ui-radius);box-shadow:var(--shadow);position:relative;border:1px solid var(--line-clr)}
     .card.fade-in{animation:rise .35s ease both}
@@ -651,6 +664,7 @@
                 <input type="file" id="histImportInput" accept=".json" class="hidden">
               </div>
             </div>
+            <div class="import-note">Cada importación guarda un respaldo temporal. Usá el aviso &ldquo;Deshacer&rdquo; para volver a los datos anteriores.</div>
             <div class="card-body" style="overflow:auto; max-height:260px">
               <table class="table" style="border:0">
                 <thead><tr><th>Fecha</th><th>Nombre</th><th>Paradas</th><th>Vehículo</th><th>Tiempo</th><th>Distancia (km)</th><th>Monto pico</th><th>Estado</th><th>Acciones</th></tr></thead>
@@ -677,6 +691,7 @@
             <input type="file" id="ordImportInput" accept=".csv" class="hidden">
           </div>
         </div>
+        <p class="import-note">Cada importación guarda un respaldo temporal. Usá el aviso &ldquo;Deshacer&rdquo; para volver a los datos anteriores.</p>
         <section class="card" style="margin-top:6px">
           <div class="card-body" style="overflow:auto; max-height:520px">
             <table class="table" id="ordTable" aria-label="Listado de órdenes" style="border:0">
@@ -719,6 +734,7 @@
             <input type="file" id="sucImportInput" accept=".csv" class="hidden" />
           </div>
         </div>
+        <p class="import-note">Cada importación guarda un respaldo temporal. Usá el aviso &ldquo;Deshacer&rdquo; para volver a los datos anteriores.</p>
         <div class="panels" style="grid-template-columns:minmax(520px,1.1fr) minmax(360px,.9fr)">
           <section class="card">
             <div class="card-body" style="overflow:auto; max-height:460px">
@@ -753,6 +769,7 @@
             <input type="file" id="atmImportInput" accept=".csv" class="hidden" />
           </div>
         </div>
+        <p class="import-note">Cada importación guarda un respaldo temporal. Usá el aviso &ldquo;Deshacer&rdquo; para volver a los datos anteriores.</p>
         <div class="panels" style="grid-template-columns:minmax(520px,1.1fr) minmax(360px,.9fr)">
           <section class="card">
             <div class="card-body" style="overflow:auto; max-height:460px">
@@ -786,6 +803,7 @@
             <input type="file" id="cabImportInput" accept=".csv" class="hidden" />
           </div>
         </div>
+        <p class="import-note">Cada importación guarda un respaldo temporal. Usá el aviso &ldquo;Deshacer&rdquo; para volver a los datos anteriores.</p>
         <section class="card" style="margin-top:6px">
           <div class="card-body" style="overflow:auto; max-height:460px">
             <table class="table" id="cabTable" role="grid" aria-label="Listado de Cabeceras" style="border:0">
@@ -811,6 +829,7 @@
             <input type="file" id="otrosImportInput" accept=".csv" class="hidden" />
           </div>
         </div>
+        <p class="import-note">Cada importación guarda un respaldo temporal. Usá el aviso &ldquo;Deshacer&rdquo; para volver a los datos anteriores.</p>
         <section class="card" style="margin-top:6px">
           <div class="card-body" style="overflow:auto; max-height:520px">
             <table class="table" id="otrosTable" aria-label="Otros Bancos/Terceros">
@@ -836,6 +855,7 @@
             <input type="file" id="choImportInput" accept=".csv" class="hidden" />
           </div>
         </div>
+        <p class="import-note">Cada importación guarda un respaldo temporal. Usá el aviso &ldquo;Deshacer&rdquo; para volver a los datos anteriores.</p>
         <section class="card" style="margin-top:6px">
           <div class="card-body" style="overflow:auto; max-height:520px">
             <table class="table" id="choTable" aria-label="Choferes">
@@ -861,6 +881,7 @@
             <input type="file" id="camImportInput" accept=".csv" class="hidden" />
           </div>
         </div>
+        <p class="import-note">Cada importación guarda un respaldo temporal. Usá el aviso &ldquo;Deshacer&rdquo; para volver a los datos anteriores.</p>
         <section class="card" style="margin-top:6px">
           <div class="card-body" style="overflow:auto; max-height:520px">
             <table class="table" id="camTable" aria-label="Camiones">
@@ -1027,11 +1048,30 @@
 
   // TOAST
   const toast = document.getElementById('toast');
-  function showToast(text="Listo"){
-    toast.textContent = text;
+  function showToast(text="Listo", options){
+    if(!toast) return;
+    const opts = (options && typeof options === 'object') ? options : {};
+    toast.innerHTML = '';
+    const label = document.createElement('span');
+    label.textContent = text;
+    toast.appendChild(label);
+    if(opts.actionLabel && typeof opts.onAction === 'function'){
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = opts.actionLabel;
+      btn.addEventListener('click', ()=>{
+        clearTimeout(showToast._t);
+        toast.classList.remove('show');
+        opts.onAction();
+      }, { once: true });
+      toast.appendChild(btn);
+    }
     toast.classList.add('show');
     clearTimeout(showToast._t);
-    showToast._t = setTimeout(()=> toast.classList.remove('show'), 1600);
+    const duration = (typeof opts.duration === 'number' && opts.duration > 0)
+      ? opts.duration
+      : (opts.actionLabel ? 5200 : 1600);
+    showToast._t = setTimeout(()=> toast.classList.remove('show'), duration);
   }
 
   const WARN_THRESHOLD = 0.9;
@@ -1332,6 +1372,54 @@
     hist: load(DB.hist, [])
   };
 
+  const stateSnapshots = new Map();
+  function cloneStateData(data){
+    if(typeof structuredClone === 'function'){
+      try{ return structuredClone(data); }catch(e){}
+    }
+    if(data === null || typeof data !== 'object'){
+      return data;
+    }
+    if(Array.isArray(data)){
+      return data.map(item => cloneStateData(item));
+    }
+    const out = {};
+    for(const key of Object.keys(data)){
+      out[key] = cloneStateData(data[key]);
+    }
+    return out;
+  }
+  function snapshotState(key, meta = {}){
+    stateSnapshots.set(key, { data: cloneStateData(State[key]), meta });
+  }
+  function restoreStateSnapshot(key){
+    if(!stateSnapshots.has(key)){
+      return { restored:false, meta:null };
+    }
+    const snap = stateSnapshots.get(key);
+    stateSnapshots.delete(key);
+    State[key] = cloneStateData(snap.data);
+    return { restored:true, meta: snap.meta || {} };
+  }
+  function showImportUndoToast(message, key, onRestore){
+    showToast(message, {
+      actionLabel:'Deshacer',
+      duration:5200,
+      onAction: ()=>{
+        const { restored, meta } = restoreStateSnapshot(key);
+        if(!restored){
+          showToast('No hay cambios para deshacer');
+          return;
+        }
+        save(DB[key], State[key]);
+        if(typeof onRestore === 'function'){
+          onRestore(meta);
+        }
+        showToast('Importación revertida');
+      }
+    });
+  }
+
   function notifyDataUpdate(scope){
     document.dispatchEvent(new CustomEvent('data:updated', { detail: { scope } }));
     const routeAPI = globalThis.Route;
@@ -1511,7 +1599,13 @@
           const lat = parseNumber(cells[idx.lat]); const lng = parseNumber(cells[idx.lng]);
           return { codigo: (cells[idx.codigo]||'').trim(), nombre:(cells[idx.nombre]||'').trim(), lat, lng, cochera: String(cells[idx.cochera]||'').toLowerCase().startsWith('s') };
         }).filter(r=>r.codigo && r.nombre && isFinite(r.lat) && isFinite(r.lng));
-        if(out.length){ State.suc = out; save(DB.suc, State.suc); render(); showToast('Sucursales importadas'); }
+        if(out.length){
+          snapshotState('suc');
+          State.suc = out;
+          save(DB.suc, State.suc);
+          render();
+          showImportUndoToast('Sucursales importadas', 'suc', ()=> render());
+        }
       };
       reader.readAsText(f);
       ev.target.value='';
@@ -1720,12 +1814,17 @@
           return { codigo: (cells[idx.codigo]||'').trim().padStart(5,'0'), nombre:(cells[idx.nombre]||'').trim(), lat, lng };
         }).filter(r=>r.codigo && r.nombre && isFinite(r.lat) && isFinite(r.lng));
         if(out.length){
+          snapshotState('atms', { lastFocusedAtmCodigo });
           State.atms = out;
           save(DB.atms, State.atms);
           lastFocusedAtmCodigo = null;
           pendingMapRefresh = true;
           render();
-          showToast('ATMs importados');
+          showImportUndoToast('ATMs importados', 'atms', (meta={})=>{
+            lastFocusedAtmCodigo = meta.lastFocusedAtmCodigo ?? null;
+            pendingMapRefresh = true;
+            render();
+          });
         }
       };
       reader.readAsText(f);
@@ -1957,7 +2056,13 @@
             telefono:(cells[idx.telefono]||'').trim()
           };
         }).filter(r=>r.codigo && r.nombre);
-        if(out.length){ State.cab = out; save(DB.cab, State.cab); render(); showToast('Cabeceras importadas'); }
+        if(out.length){
+          snapshotState('cab');
+          State.cab = out;
+          save(DB.cab, State.cab);
+          render();
+          showImportUndoToast('Cabeceras importadas', 'cab', ()=> render());
+        }
       };
       reader.readAsText(f);
       ev.target.value='';
@@ -2042,7 +2147,13 @@
           const lat = parseNumber(cells[idx.lat]); const lng = parseNumber(cells[idx.lng]);
           return { codigo:(cells[idx.codigo]||'').trim(), nombre:(cells[idx.nombre]||'').trim(), lat, lng, direccion:(cells[idx.direccion]||'').trim() };
         }).filter(r=>r.codigo && isFinite(r.lat) && isFinite(r.lng));
-        if(out.length){ State.otros = out; save(DB.otros, State.otros); render(); showToast('Otros bancos importados'); }
+        if(out.length){
+          snapshotState('otros');
+          State.otros = out;
+          save(DB.otros, State.otros);
+          render();
+          showImportUndoToast('Otros bancos importados', 'otros', ()=> render());
+        }
       };
       reader.readAsText(f);
       ev.target.value='';
@@ -2150,7 +2261,13 @@
         const idx = {legajo: headers.indexOf('legajo'), nombre: headers.indexOf('nombre'), licencia: headers.indexOf('licencia'), vto: headers.indexOf('vto'), tel: headers.indexOf('tel')};
         if(!ensureRequiredColumns(idx, ['legajo','nombre','licencia','vto'])) return;
         const out = rows.map(c => ({legajo:c[idx.legajo], nombre:c[idx.nombre], licencia:c[idx.licencia], vto:c[idx.vto], tel:c[idx.tel]})).filter(r=>r.legajo && r.nombre);
-        if(out.length){ State.cho = out; save(DB.cho, State.cho); render(); showToast('Choferes importados'); }
+        if(out.length){
+          snapshotState('cho');
+          State.cho = out;
+          save(DB.cho, State.cho);
+          render();
+          showImportUndoToast('Choferes importados', 'cho', ()=> render());
+        }
       };
       reader.readAsText(f); ev.target.value='';
     });
@@ -2260,7 +2377,13 @@
         const idx = {id: headers.indexOf('id'), modelo: headers.indexOf('modelo'), capMonto: headers.indexOf('capMonto'), capKg: headers.indexOf('capKg'), velMax: headers.indexOf('velMax')};
         if(!ensureRequiredColumns(idx, ['id','modelo','capMonto','capKg','velMax'])) return;
         const out = rows.map(c => ({id:c[idx.id], modelo:c[idx.modelo], capMonto: parseNumber(c[idx.capMonto]), capKg: parseNumber(c[idx.capKg]), velMax: parseNumber(c[idx.velMax])})).filter(r=>r.id);
-        if(out.length){ State.cam = out; save(DB.cam, State.cam); render(); showToast('Camiones importados'); }
+        if(out.length){
+          snapshotState('cam');
+          State.cam = out;
+          save(DB.cam, State.cam);
+          render();
+          showImportUndoToast('Camiones importados', 'cam', ()=> render());
+        }
       };
       reader.readAsText(f); ev.target.value='';
     });
@@ -2431,7 +2554,13 @@
           servicio: c[idx.servicio]||'', peso: parseNumber(c[idx.peso]),
           lat: parseNumber(c[idx.lat]), lng: parseNumber(c[idx.lng]), usar:false
         })).filter(o => o.categoria && isFinite(o.lat) && isFinite(o.lng));
-        if(out.length){ State.ord = out; save(DB.ord, State.ord); render(); showToast('Órdenes importadas'); }
+        if(out.length){
+          snapshotState('ord');
+          State.ord = out;
+          save(DB.ord, State.ord);
+          render();
+          showImportUndoToast('Órdenes importadas', 'ord', ()=> render());
+        }
       };
       reader.readAsText(f); ev.target.value='';
     });
@@ -3951,8 +4080,21 @@
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     });
     document.getElementById('histImportInput')?.addEventListener('change', (ev)=>{
-      const f=ev.target.files?.[0]; if(!f) return; const reader=new FileReader();
-      reader.onload = (e)=>{ try{ const arr = JSON.parse(e.target.result); if(Array.isArray(arr)){ State.hist = arr; save(DB.hist, State.hist); renderHist(); showToast('Historial importado'); } }catch(e){ alert('JSON inválido'); } };
+      const f = ev.target.files?.[0]; if(!f) return; const reader = new FileReader();
+      reader.onload = (e)=>{
+        try{
+          const arr = JSON.parse(e.target.result);
+          if(Array.isArray(arr)){
+            snapshotState('hist');
+            State.hist = arr;
+            save(DB.hist, State.hist);
+            renderHist();
+            showImportUndoToast('Historial importado', 'hist', ()=> renderHist());
+          }
+        }catch(err){
+          alert('JSON inválido');
+        }
+      };
       reader.readAsText(f); ev.target.value='';
     });
     document.getElementById('btnImportHist')?.addEventListener('click', ()=> document.getElementById('histImportInput').click());
