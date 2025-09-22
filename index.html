@@ -247,6 +247,7 @@
     .order-num{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;background:var(--brand-50);border:1px solid var(--brand-100);font:800 11px/1 "Inter",sans-serif}
     .priority{color:#d97706;font-weight:800}
     .route-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+    .route-summary.cost-grid{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));}
     .route-summary.alert{padding:12px;border-radius:var(--ui-radius);background:linear-gradient(180deg,rgba(227,90,90,.12),rgba(227,90,90,.08));box-shadow:inset 0 0 0 1px rgba(227,90,90,.35);transition:background .25s ease, box-shadow .25s ease;}
     .route-summary.alert .kv div{color:var(--danger);}
     @media (max-width:900px){ .route-summary{grid-template-columns:repeat(2,minmax(0,1fr))} }
@@ -254,6 +255,7 @@
     html[data-theme="dark"] .kv{background:linear-gradient(180deg,#263744,#21323d)}
     .kv small{color:var(--muted-text);display:block;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
     .kv div{margin-top:6px;font-weight:800;font-size:16px}
+    .kv .detail{margin-top:6px;font-size:12px;color:var(--muted-text);font-weight:600;letter-spacing:0;text-transform:none;display:block}
     .kv.warning{background:linear-gradient(180deg,rgba(250,204,21,.18),rgba(250,204,21,.06));border-color:rgba(250,204,21,.45);box-shadow:inset 0 0 0 1px rgba(250,204,21,.25)}
     html[data-theme="dark"] .kv.warning{background:linear-gradient(180deg,rgba(202,138,4,.32),rgba(146,64,14,.18));border-color:rgba(234,179,8,.45);box-shadow:inset 0 0 0 1px rgba(234,179,8,.32)}
     .kv.warning div{color:#b45309}
@@ -896,9 +898,22 @@
       <section class="content hidden" id="costosSection" aria-label="Costos">
         <div style="font-weight:800;font-size:16px">Parámetros de Costos</div>
         <div class="panel">
-          <div class="kv"><small>Costo por parada</small><div>$ 750</div></div>
-          <div class="kv"><small>Costo por km (CABA)</small><div>$ 50</div></div>
-          <div class="kv"><small>Costo por km (AMBA)</small><div>$ 55</div></div>
+          <h3>Tarifas configuradas</h3>
+          <div class="route-summary cost-grid">
+            <div class="kv"><small>Parada</small><div id="costRateStop">$ 0</div><span class="detail" id="costRateStopDetail">Editable desde Configuración → Tarifas de costos</span></div>
+            <div class="kv"><small>Kilómetro CABA</small><div id="costRateKmCaba">$ 0</div><span class="detail" id="costRateKmCabaDetail">Se aplica a tramos dentro de CABA</span></div>
+            <div class="kv"><small>Kilómetro AMBA</small><div id="costRateKmAmba">$ 0</div><span class="detail" id="costRateKmAmbaDetail">Se aplica al resto de los tramos</span></div>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Desglose estimado</h3>
+          <div class="route-summary cost-grid" id="costBreakdown">
+            <div class="kv"><small>Paradas</small><div id="costStopsTotal">$ 0</div><span class="detail" id="costStopsDetail">0 paradas × $ 0</span></div>
+            <div class="kv"><small>Km CABA</small><div id="costKmCabaTotal">$ 0</div><span class="detail" id="costKmCabaDetail">— km × $ 0</span></div>
+            <div class="kv"><small>Km AMBA</small><div id="costKmAmbaTotal">$ 0</div><span class="detail" id="costKmAmbaDetail">— km × $ 0</span></div>
+            <div class="kv"><small>Total estimado</small><div id="costTotal">$ 0</div><span class="detail" id="costTotalDetail">Actualizar rutas para estimar costos</span></div>
+          </div>
+          <p class="import-note" style="margin-top:12px">Los valores se recalculan automáticamente según la distancia estimada, las paradas y las tarifas configuradas.</p>
         </div>
       </section>
 
@@ -919,6 +934,14 @@
             <span class="pill"><label>Parada ATM (min)</label><input id="cfgStopATM" type="number" value="15" style="all:unset;border:1px solid var(--line-clr);padding:8px 10px;border-radius:10px;width:80px;font-weight:800" /></span>
             <span class="pill"><label>Parada Cabecera (min)</label><input id="cfgStopCab" type="number" value="10" style="all:unset;border:1px solid var(--line-clr);padding:8px 10px;border-radius:10px;width:80px;font-weight:800" /></span>
             <span class="pill"><label>Parada BCRA/Otros (min)</label><input id="cfgStopExt" type="number" value="20" style="all:unset;border:1px solid var(--line-clr);padding:8px 10px;border-radius:10px;width:80px;font-weight:800" /></span>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Tarifas de costos</h3>
+          <div class="row" style="flex-wrap:wrap">
+            <span class="pill"><label>Tarifa por parada ($)</label><input id="cfgCostStop" type="number" value="750" min="0" step="1" style="all:unset;border:1px solid var(--line-clr);padding:8px 10px;border-radius:10px;width:120px;font-weight:800" /></span>
+            <span class="pill"><label>Tarifa km CABA ($)</label><input id="cfgCostKmCaba" type="number" value="50" min="0" step="1" style="all:unset;border:1px solid var(--line-clr);padding:8px 10px;border-radius:10px;width:120px;font-weight:800" /></span>
+            <span class="pill"><label>Tarifa km AMBA ($)</label><input id="cfgCostKmAmba" type="number" value="55" min="0" step="1" style="all:unset;border:1px solid var(--line-clr);padding:8px 10px;border-radius:10px;width:120px;font-weight:800" /></span>
           </div>
         </div>
         <div class="panel">
@@ -1259,6 +1282,9 @@
     stopATM:  15,        // min
     stopCab:  10,        // min
     stopExt:  20,        // min
+    costStop: 750,       // $ por parada
+    costKmCaba: 50,      // $ por km dentro de CABA
+    costKmAmba: 55,      // $ por km fuera de CABA
     uiFont:   1,
     uiRadius: 14,
     uiAccent: '#43a46d',
@@ -2985,7 +3011,13 @@
     let missingOriginWarned = false;
     const ignoredRegistry = new Map();
     let lastMapIgnoredCount = 0;
-    const lastSummary = { distKm: null };
+    const lastSummary = { distKm: null, distCaba: 0, distAmba: 0, stops: 0, hasOrigin: false };
+    const CABA_BOUNDS = { minLat: -34.705, maxLat: -34.526, minLng: -58.531, maxLng: -58.335 };
+    function isCabaCoord(coords){
+      if(!coords || !Number.isFinite(coords.lat) || !Number.isFinite(coords.lng)) return false;
+      return coords.lat >= CABA_BOUNDS.minLat && coords.lat <= CABA_BOUNDS.maxLat
+        && coords.lng >= CABA_BOUNDS.minLng && coords.lng <= CABA_BOUNDS.maxLng;
+    }
 
     let lastSelectedCamion = null;
     const recentRoutesTbody = document.getElementById('recentRoutes');
@@ -3714,6 +3746,8 @@
 
     function updateSummary(){
       const totalPoints = flattenRoutes().length;
+      lastSummary.stops = totalPoints;
+      lastSummary.hasOrigin = false;
       document.getElementById('sumPuntos').textContent = totalPoints;
       const selectedTrucks = parseInt(nCamionesInput?.value, 10) || 1;
       const usedTrucks = currentRoute.filter(route => route.length>0).length;
@@ -3728,6 +3762,7 @@
       const summaryEl = document.getElementById('routeSummary');
       const origen = State.cab.find(c=>c.codigo===selOrigen.value);
       const originCoords = getLatLngCoords(origen);
+      const originIsCaba = isCabaCoord(originCoords);
       const hasOrigen = Boolean(originCoords);
 
       if(btnExportar){ btnExportar.disabled = !hasOrigen; }
@@ -3766,6 +3801,9 @@
           missingOriginWarned = false;
         }
         lastSummary.distKm = null;
+        lastSummary.distCaba = 0;
+        lastSummary.distAmba = 0;
+        updateCostBreakdown();
         return;
       }
 
@@ -3774,6 +3812,8 @@
       let maxMonto = 0;
       let totalTiempo = 0;
       let totalDistKm = 0;
+      let totalDistKmCaba = 0;
+      let totalDistKmAmba = 0;
       let totalPeso = 0;
       let maxPeso = 0;
       currentRoute.forEach(route=>{
@@ -3781,12 +3821,24 @@
         let maxCargaRuta = 0;
         let minRuta = 0;
         let distKmRuta = 0;
+        let distKmCabaRuta = 0;
+        let distKmAmbaRuta = 0;
         let cargaPeso = 0;
         let maxCargaPesoRuta = 0;
         let last = originCoords ? {...originCoords} : null;
+        let lastIsCaba = isCabaCoord(last);
         route.forEach(p=>{
           const coords = getLatLngCoords(p);
-          if(last && coords){ distKmRuta += haversine(last.lat,last.lng,coords.lat,coords.lng); }
+          const coordsIsCaba = coords ? isCabaCoord(coords) : false;
+          if(last && coords){
+            const segmentDist = haversine(last.lat,last.lng,coords.lat,coords.lng);
+            distKmRuta += segmentDist;
+            if(lastIsCaba && coordsIsCaba){
+              distKmCabaRuta += segmentDist;
+            }else{
+              distKmAmbaRuta += segmentDist;
+            }
+          }
           minRuta += stopTimeFor(p.tipo);
           const monto = Number(p.monto) || 0;
           carga += monto < 0 ? 0 : monto;
@@ -3801,18 +3853,30 @@
             }
             maxCargaPesoRuta = Math.max(maxCargaPesoRuta, cargaPeso);
           }
-          if(coords){ last = coords; }
+          if(coords){ last = coords; lastIsCaba = coordsIsCaba; }
         });
         if(originCoords && route.length && last){
-          distKmRuta += haversine(last.lat,last.lng, originCoords.lat, originCoords.lng);
+          const segmentDist = haversine(last.lat,last.lng, originCoords.lat, originCoords.lng);
+          distKmRuta += segmentDist;
+          if(lastIsCaba && originIsCaba){
+            distKmCabaRuta += segmentDist;
+          }else{
+            distKmAmbaRuta += segmentDist;
+          }
         }
         const tiempoTraslado = distKmRuta / (cfg.vel||40) * 60 * (cfg.trafficFactor||1);
         totalTiempo += minRuta + tiempoTraslado;
         maxMonto = Math.max(maxMonto, maxCargaRuta);
         totalDistKm += distKmRuta;
+        totalDistKmCaba += distKmCabaRuta;
+        totalDistKmAmba += distKmAmbaRuta;
         maxPeso = Math.max(maxPeso, maxCargaPesoRuta);
       });
-      lastSummary.distKm = Number.isFinite(totalDistKm) ? totalDistKm : null;
+      const distKmVal = Number.isFinite(totalDistKm) ? totalDistKm : null;
+      lastSummary.distKm = distKmVal;
+      lastSummary.distCaba = distKmVal === null ? 0 : (Number.isFinite(totalDistKmCaba) ? totalDistKmCaba : 0);
+      lastSummary.distAmba = distKmVal === null ? 0 : (Number.isFinite(totalDistKmAmba) ? totalDistKmAmba : 0);
+      lastSummary.hasOrigin = true;
       if(sumDistEl){
         const distKm = Number.isFinite(totalDistKm) ? Math.round(totalDistKm * 10) / 10 : null;
         if(distKm !== null){
@@ -3836,6 +3900,7 @@
       if(sumPesoEl){
         sumPesoEl.textContent = fmtKg(totalPeso);
       }
+      updateCostBreakdown();
       const maxPermitido = Number(cfg.maxMonto);
       const tieneLimite = Number.isFinite(maxPermitido) && maxPermitido > 0;
       const excedido = tieneLimite && maxMonto > maxPermitido + 1e-6;
@@ -3913,6 +3978,95 @@
         }
         btnOptimizar.disabled = Boolean(reason);
         btnOptimizar.dataset.tip = reason || defaultOptimizeTip;
+      }
+    }
+
+    function updateCostBreakdown(){
+      const rateStopEl = document.getElementById('costRateStop');
+      const rateKmCabaEl = document.getElementById('costRateKmCaba');
+      const rateKmAmbaEl = document.getElementById('costRateKmAmba');
+      const rateStopDetailEl = document.getElementById('costRateStopDetail');
+      const rateKmCabaDetailEl = document.getElementById('costRateKmCabaDetail');
+      const rateKmAmbaDetailEl = document.getElementById('costRateKmAmbaDetail');
+      const stopsTotalEl = document.getElementById('costStopsTotal');
+      const stopsDetailEl = document.getElementById('costStopsDetail');
+      const kmCabaTotalEl = document.getElementById('costKmCabaTotal');
+      const kmCabaDetailEl = document.getElementById('costKmCabaDetail');
+      const kmAmbaTotalEl = document.getElementById('costKmAmbaTotal');
+      const kmAmbaDetailEl = document.getElementById('costKmAmbaDetail');
+      const totalEl = document.getElementById('costTotal');
+      const totalDetailEl = document.getElementById('costTotalDetail');
+
+      const stopRateRaw = parseNumber(cfg.costStop);
+      const kmCabaRateRaw = parseNumber(cfg.costKmCaba);
+      const kmAmbaRateRaw = parseNumber(cfg.costKmAmba);
+      const stopRate = Number.isFinite(stopRateRaw) && stopRateRaw >= 0 ? stopRateRaw : 0;
+      const kmCabaRate = Number.isFinite(kmCabaRateRaw) && kmCabaRateRaw >= 0 ? kmCabaRateRaw : 0;
+      const kmAmbaRate = Number.isFinite(kmAmbaRateRaw) && kmAmbaRateRaw >= 0 ? kmAmbaRateRaw : 0;
+
+      if(rateStopEl){ rateStopEl.textContent = fmtMoney(stopRate); }
+      if(rateKmCabaEl){ rateKmCabaEl.textContent = fmtMoney(kmCabaRate); }
+      if(rateKmAmbaEl){ rateKmAmbaEl.textContent = fmtMoney(kmAmbaRate); }
+      if(rateStopDetailEl){ rateStopDetailEl.textContent = 'Editable desde Configuración → Tarifas de costos'; }
+      if(rateKmCabaDetailEl){ rateKmCabaDetailEl.textContent = 'Se aplica a tramos cuyo origen y destino están dentro de CABA.'; }
+      if(rateKmAmbaDetailEl){ rateKmAmbaDetailEl.textContent = 'Se aplica al resto de los tramos de la ruta.'; }
+
+      const stops = Math.max(0, lastSummary.stops || 0);
+      const stopLabel = stops === 1 ? 'parada' : 'paradas';
+      const stopsCost = stopRate * stops;
+      if(stopsTotalEl){ stopsTotalEl.textContent = fmtMoney(stopsCost); }
+      if(stopsDetailEl){ stopsDetailEl.textContent = `${stops} ${stopLabel} × ${fmtMoney(stopRate)}`; }
+
+      const canComputeKm = lastSummary.hasOrigin && Number.isFinite(lastSummary.distKm);
+      const distCabaRaw = Number(lastSummary.distCaba);
+      const distAmbaRaw = Number(lastSummary.distAmba);
+      const distCaba = canComputeKm && Number.isFinite(distCabaRaw) ? Math.max(0, distCabaRaw) : null;
+      const distAmba = canComputeKm && Number.isFinite(distAmbaRaw) ? Math.max(0, distAmbaRaw) : null;
+      const roundKm = (km) => Math.round(km * 10) / 10;
+      const formatKm = (km) => fmtES.format(roundKm(km));
+      const needOriginMsg = 'Seleccioná una cabecera con coordenadas válidas para calcular kilómetros.';
+
+      const kmCabaCost = distCaba !== null ? distCaba * kmCabaRate : null;
+      if(kmCabaTotalEl){
+        if(distCaba !== null){
+          kmCabaTotalEl.textContent = fmtMoney(kmCabaCost || 0);
+          if(kmCabaDetailEl){ kmCabaDetailEl.textContent = `${formatKm(distCaba)} km × ${fmtMoney(kmCabaRate)}`; }
+        }else{
+          kmCabaTotalEl.textContent = '—';
+          if(kmCabaDetailEl){ kmCabaDetailEl.textContent = needOriginMsg; }
+        }
+      }
+
+      const kmAmbaCost = distAmba !== null ? distAmba * kmAmbaRate : null;
+      if(kmAmbaTotalEl){
+        if(distAmba !== null){
+          kmAmbaTotalEl.textContent = fmtMoney(kmAmbaCost || 0);
+          if(kmAmbaDetailEl){ kmAmbaDetailEl.textContent = `${formatKm(distAmba)} km × ${fmtMoney(kmAmbaRate)}`; }
+        }else{
+          kmAmbaTotalEl.textContent = '—';
+          if(kmAmbaDetailEl){ kmAmbaDetailEl.textContent = needOriginMsg; }
+        }
+      }
+
+      if(totalEl){
+        if(canComputeKm){
+          const totalCost = stopsCost + (kmCabaCost || 0) + (kmAmbaCost || 0);
+          totalEl.textContent = fmtMoney(totalCost);
+          if(totalDetailEl){
+            const parts = [
+              `Paradas ${fmtMoney(stopsCost)}`,
+              `Km CABA ${fmtMoney(kmCabaCost || 0)}`,
+              `Km AMBA ${fmtMoney(kmAmbaCost || 0)}`
+            ];
+            totalDetailEl.textContent = parts.join(' + ');
+          }
+        }else{
+          totalEl.textContent = '—';
+          if(totalDetailEl){
+            const stopsMsg = stops > 0 ? `Costos por parada estimados: ${fmtMoney(stopsCost)}.` : 'Sin paradas en la ruta.';
+            totalDetailEl.textContent = `${stopsMsg} ${needOriginMsg}`;
+          }
+        }
       }
     }
 
@@ -4478,6 +4632,9 @@
     bind('cfgStopATM','stopATM', ()=>{});
     bind('cfgStopCab','stopCab', ()=>{});
     bind('cfgStopExt','stopExt', ()=>{});
+    bind('cfgCostStop','costStop', updateCostBreakdown);
+    bind('cfgCostKmCaba','costKmCaba', updateCostBreakdown);
+    bind('cfgCostKmAmba','costKmAmba', updateCostBreakdown);
     bind('cfgFont','uiFont', applyUIConfig);
     bind('cfgRadius','uiRadius', applyUIConfig);
     bind('cfgAccent','uiAccent', applyUIConfig);
