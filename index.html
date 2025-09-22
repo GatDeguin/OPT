@@ -488,19 +488,19 @@
         <div class="stats">
           <div class="card stat fade-in" style="animation-delay:.02s">
             <div class="circle"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-650)" stroke-width="1.8"><path d="M3 21l4-7 4 3 4-8 4 12" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-            <div><div class="value" data-count="12">12</div><div class="label">Rutas</div></div>
+            <div><div class="value" id="kpiRutas">0</div><div class="label">Rutas</div></div>
           </div>
           <div class="card stat fade-in" style="animation-delay:.06s">
             <div class="circle"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-650)" stroke-width="1.7"><path d="M4 18c3-5 7-5 10-10 1.5-2.1 3-3 6-3" stroke-linecap="round"/><path d="M15 14c2.5-1 4-1 5.5 0" stroke-linecap="round"/></svg></div>
-            <div><div class="value" data-count="427">427</div><div class="label">Km</div></div>
+            <div><div class="value" id="kpiKm">0</div><div class="label">Km</div></div>
           </div>
           <div class="card stat fade-in" style="animation-delay:.1s">
             <div class="circle"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-650)" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 3" stroke-linecap="round"/></svg></div>
-            <div><div class="value" data-count="8.2" data-decimal="," data-fixed="1">8,2</div><div class="label">Horas</div></div>
+            <div><div class="value" id="kpiHoras">0</div><div class="label">Horas</div></div>
           </div>
           <div class="card stat fade-in" style="animation-delay:.14s">
             <div class="circle"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-650)" stroke-width="1.8"><path d="M6 6l12 12M6 18L18 6" stroke-linecap="round"/></svg></div>
-            <div><div class="value" data-count="5">5</div><div class="label">No servidos</div></div>
+            <div><div class="value" id="kpiNoServidos">0</div><div class="label">No servidos</div></div>
           </div>
         </div>
 
@@ -513,8 +513,8 @@
             <h3>Desglose de Entregas con Éxito</h3>
             <div class="chart-wrap" style="height:200px">
               <canvas id="entregasChart"></canvas>
-              <div class="pie-side-label left" id="pieLeft">31,3 %</div>
-              <div class="pie-side-label right" id="pieRight">68,7 %</div>
+              <div class="pie-side-label left" id="pieLeft">0,0 %</div>
+              <div class="pie-side-label right" id="pieRight">0,0 %</div>
             </div>
             <div class="legend">
               <div class="item"><span class="dot" style="background:var(--brand-650)"></span> Sucursales</div>
@@ -1163,40 +1163,6 @@
 
     tryAuto();
   })();
-
-  /* =====================================================================
-     CHARTS DASHBOARD (ligeros)
-  ===================================================================== */
-  (function(){
-    function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
-    const barCtx = document.getElementById('montosChart');
-    if(barCtx){
-      const bar = new Chart(barCtx, {
-        type: 'bar',
-        data: { labels: ['mar. 9','mar. 10','mar. 12','mar. 12','mar. 14'],
-          datasets: [{ label: 'Montos (M)', data: [4.4,3.5,2.6,1.9,1.4], backgroundColor: cssVar('--chart-accent')||'rgba(67,164,109,.85)', borderRadius: 6, borderSkipped: false, maxBarThickness: 46 }]},
-        options: { animation:{duration:700}, plugins:{ legend:{display:false} },
-          scales:{ x:{ grid:{display:false} }, y:{ grid:{color:cssVar('--chart-grid')}, suggestedMax:5 } }
-        }
-      });
-    }
-    const pieCtx = document.getElementById('entregasChart');
-    if(pieCtx){
-      new Chart(pieCtx, { type:'doughnut', data:{ labels:['Sucursales','ATMs'],
-        datasets:[{ data:[68.7,31.3], backgroundColor:[cssVar('--chart-accent-2')||'#3b9562', cssVar('--brand-200')||'#c8ecd7'], borderColor:['#eaf7ef','#f3faf6'], borderWidth:2 }]},
-        options:{ cutout:'62%', rotation:-40, plugins:{ legend:{display:false} } } });
-    }
-    const lineCtx = document.getElementById('fallidasChart');
-    if(lineCtx){
-      const grad = lineCtx.getContext('2d').createLinearGradient(0,0,0,160); grad.addColorStop(0, 'rgba(67,164,109,.18)'); grad.addColorStop(1,'rgba(67,164,109,0)');
-      new Chart(lineCtx, { type:'line',
-        data:{ labels:['abr. 2','abr. 4','abr. 6','abr. 7','abr. 8','abr. 10','abr. 4','abr. 10','abr. 10'],
-               datasets:[{ data:[2,3,7,6,3,5,4,6,3], borderColor: cssVar('--chart-accent-2')||'#3b9562', backgroundColor: grad, tension:.35, fill:true, pointRadius:3, pointBackgroundColor:'#fff', pointBorderWidth:2 }]},
-        options:{ plugins:{ legend:{display:false} }, scales:{ x:{grid:{display:false}}, y:{grid:{color:cssVar('--chart-grid')}, suggestedMax:10} } }
-      });
-    }
-  })();
-
   /* =====================================================================
      HELPERS CSV + GEO + LEAFLET
   ===================================================================== */
@@ -1427,6 +1393,269 @@
       routeAPI.refreshSources();
     }
   }
+
+  const DashboardMetrics = (function(){
+    const kpiEls = {
+      rutas: document.getElementById('kpiRutas'),
+      km: document.getElementById('kpiKm'),
+      horas: document.getElementById('kpiHoras'),
+      noServidos: document.getElementById('kpiNoServidos')
+    };
+    const pieLeft = document.getElementById('pieLeft');
+    const pieRight = document.getElementById('pieRight');
+    const barCtx = document.getElementById('montosChart');
+    const pieCtx = document.getElementById('entregasChart');
+    const lineCtx = document.getElementById('fallidasChart');
+    let montosChart = null;
+    let entregasChart = null;
+    let fallidasChart = null;
+
+    function cssVar(name){
+      return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+    function getApprovedHistory(){
+      if(!Array.isArray(State?.hist)) return [];
+      return State.hist.filter(entry => entry && entry.aprobado);
+    }
+    function extractPoints(entry){
+      if(!entry) return [];
+      if(Array.isArray(entry.puntos)) return entry.puntos.filter(Boolean);
+      if(Array.isArray(entry.paradas)) return entry.paradas.filter(Boolean);
+      if(Array.isArray(entry.rutas)){
+        const all = [];
+        entry.rutas.forEach(route => {
+          if(Array.isArray(route)){
+            route.forEach(p => { if(p) all.push(p); });
+          }
+        });
+        return all;
+      }
+      return [];
+    }
+    function parseTiempoToMinutes(value){
+      if(value === null || value === undefined) return 0;
+      if(typeof value === 'number' && Number.isFinite(value)){
+        return value;
+      }
+      const str = String(value).trim();
+      if(!str) return 0;
+      const colon = str.match(/(\d{1,3})\s*:\s*(\d{1,2})/);
+      if(colon){
+        const hours = parseInt(colon[1], 10);
+        const minutes = parseInt(colon[2], 10);
+        if(Number.isFinite(hours) && Number.isFinite(minutes)){
+          return hours * 60 + minutes;
+        }
+      }
+      const hourMatch = str.match(/(\d+(?:[.,]\d+)?)\s*h/);
+      if(hourMatch){
+        const num = parseFloat(hourMatch[1].replace(',', '.'));
+        if(Number.isFinite(num)){
+          return Math.round(num * 60);
+        }
+      }
+      const minuteMatch = str.match(/(\d+(?:[.,]\d+)?)\s*m/);
+      if(minuteMatch){
+        const num = parseFloat(minuteMatch[1].replace(',', '.'));
+        if(Number.isFinite(num)){
+          return Math.round(num);
+        }
+      }
+      const numeric = parseFloat(str.replace(',', '.'));
+      if(Number.isFinite(numeric)){
+        return numeric <= 24 ? Math.round(numeric * 60) : Math.round(numeric);
+      }
+      return 0;
+    }
+    function computeKPIs(){
+      const approved = getApprovedHistory();
+      const totalRoutes = approved.length;
+      const totalKm = approved.reduce((acc, entry)=>{
+        const dist = parseNumber(entry?.distKm);
+        return Number.isFinite(dist) ? acc + dist : acc;
+      }, 0);
+      const totalMinutes = approved.reduce((acc, entry)=> acc + parseTiempoToMinutes(entry?.tiempo), 0);
+      const totalHours = totalMinutes / 60;
+      const noServidos = Array.isArray(State?.ord)
+        ? State.ord.reduce((acc, ord)=> (!ord?.usar ? acc + 1 : acc), 0)
+        : 0;
+      return { totalRoutes, totalKm, totalHours, noServidos };
+    }
+    function renderKPIs(){
+      const { totalRoutes, totalKm, totalHours, noServidos } = computeKPIs();
+      if(kpiEls.rutas){
+        kpiEls.rutas.textContent = totalRoutes.toLocaleString('es-AR');
+      }
+      if(kpiEls.km){
+        const kmValue = Number.isFinite(totalKm) ? totalKm : 0;
+        kpiEls.km.textContent = fmtES.format(Math.round(kmValue * 10) / 10);
+      }
+      if(kpiEls.horas){
+        const hoursValue = Number.isFinite(totalHours) ? totalHours : 0;
+        kpiEls.horas.textContent = hoursValue.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+      }
+      if(kpiEls.noServidos){
+        kpiEls.noServidos.textContent = noServidos.toLocaleString('es-AR');
+      }
+    }
+    function formatDateLabel(entry){
+      const fecha = typeof entry?.fecha === 'string' ? entry.fecha : '';
+      if(fecha){
+        const d = new Date(fecha);
+        if(!Number.isNaN(d.getTime())){
+          return d.toLocaleDateString('es-AR', { month:'short', day:'numeric' });
+        }
+      }
+      const nombre = typeof entry?.nombre === 'string' ? entry.nombre.trim() : '';
+      return nombre || 'Ruta';
+    }
+    function computeMontosData(limit = 5){
+      const approved = getApprovedHistory();
+      const slice = approved.slice(0, limit);
+      if(!slice.length){
+        return { labels:['Sin datos'], data:[0] };
+      }
+      const labels = [];
+      const data = [];
+      slice.slice().reverse().forEach(entry => {
+        labels.push(formatDateLabel(entry));
+        const monto = parseNumber(entry?.montoPico);
+        const millones = Number.isFinite(monto) ? monto / 1_000_000 : 0;
+        data.push(Math.round(millones * 100) / 100);
+      });
+      return { labels, data };
+    }
+    function computeEntregasData(){
+      const approved = getApprovedHistory();
+      let suc = 0;
+      let atm = 0;
+      approved.forEach(entry => {
+        extractPoints(entry).forEach(p => {
+          const tipo = typeof p?.tipo === 'string' ? p.tipo.toLowerCase() : '';
+          if(tipo.includes('atm')){
+            atm += 1;
+          }else if(tipo.includes('suc')){
+            suc += 1;
+          }
+        });
+      });
+      return { suc, atm };
+    }
+    function computeFallidasSeries(limit = 7){
+      const approved = getApprovedHistory();
+      const slice = approved.slice(0, limit);
+      if(!slice.length){
+        return { labels:['Sin datos'], exitosas:[0], fallidas:[0] };
+      }
+      const labels = [];
+      const exitosas = [];
+      const fallidas = [];
+      slice.slice().reverse().forEach(entry => {
+        labels.push(formatDateLabel(entry));
+        const puntos = extractPoints(entry);
+        exitosas.push(puntos.length);
+        let fallidasCount = 0;
+        const candidates = [entry?.fallidas, entry?.entregasFallidas, entry?.noServidos, entry?.noServidas, entry?.incidencias];
+        for(const candidate of candidates){
+          if(Array.isArray(candidate)){
+            fallidasCount = Math.max(fallidasCount, candidate.length);
+          }else{
+            const val = parseNumber(candidate);
+            if(Number.isFinite(val)){
+              fallidasCount = Math.max(fallidasCount, val);
+            }
+          }
+        }
+        fallidas.push(fallidasCount);
+      });
+      return { labels, exitosas, fallidas };
+    }
+    function ensureCharts(){
+      if(typeof Chart !== 'function'){
+        return;
+      }
+      if(!montosChart && barCtx){
+        montosChart = new Chart(barCtx, {
+          type: 'bar',
+          data: { labels: [], datasets: [{ label: 'Montos (M)', data: [], backgroundColor: cssVar('--chart-accent') || 'rgba(67,164,109,.85)', borderRadius: 6, borderSkipped: false, maxBarThickness: 46 }]},
+          options: { animation:{duration:700}, plugins:{ legend:{display:false} }, scales:{ x:{ grid:{display:false} }, y:{ grid:{color:cssVar('--chart-grid')}, ticks:{ precision:0 } } } }
+        });
+      }
+      if(!entregasChart && pieCtx){
+        entregasChart = new Chart(pieCtx, {
+          type:'doughnut',
+          data:{ labels:['Sucursales','ATMs'], datasets:[{ data:[0,0], backgroundColor:[cssVar('--chart-accent-2') || '#3b9562', cssVar('--brand-200') || '#c8ecd7'], borderColor:['#eaf7ef','#f3faf6'], borderWidth:2 }]},
+          options:{ cutout:'62%', rotation:-40, plugins:{ legend:{display:false} } }
+        });
+      }
+      if(!fallidasChart && lineCtx){
+        const ctx = lineCtx.getContext('2d');
+        const height = lineCtx.height || 160;
+        const successGrad = ctx.createLinearGradient(0,0,0,height);
+        successGrad.addColorStop(0, cssVar('--chart-accent-soft') || 'rgba(67,164,109,.18)');
+        successGrad.addColorStop(1, 'rgba(67,164,109,0)');
+        const failGrad = ctx.createLinearGradient(0,0,0,height);
+        failGrad.addColorStop(0, 'rgba(227,90,90,.20)');
+        failGrad.addColorStop(1, 'rgba(227,90,90,0)');
+        fallidasChart = new Chart(ctx, {
+          type:'line',
+          data:{ labels:[], datasets:[
+            { label:'Exitosas', data:[], borderColor: cssVar('--chart-accent-2') || '#3b9562', backgroundColor: successGrad, tension:.35, fill:true, pointRadius:3, pointBackgroundColor:'#fff', pointBorderWidth:2 },
+            { label:'Fallidas', data:[], borderColor: cssVar('--danger') || '#e35a5a', backgroundColor: failGrad, tension:.35, fill:true, pointRadius:3, pointBackgroundColor:'#fff', pointBorderWidth:2 }
+          ]},
+          options:{ plugins:{ legend:{display:true, labels:{usePointStyle:true}} }, scales:{ x:{grid:{display:false}}, y:{grid:{color:cssVar('--chart-grid')}, beginAtZero:true, ticks:{ precision:0 }} } }
+        });
+      }
+    }
+    function updateMontosChart(){
+      if(!montosChart) return;
+      const { labels, data } = computeMontosData();
+      montosChart.data.labels = labels;
+      montosChart.data.datasets[0].data = data;
+      montosChart.update();
+    }
+    function updateEntregasChart(){
+      if(!entregasChart) return;
+      const { suc, atm } = computeEntregasData();
+      entregasChart.data.datasets[0].data = [suc, atm];
+      entregasChart.update();
+      const total = suc + atm;
+      const sucPct = total ? (suc / total * 100) : 0;
+      const atmPct = total ? (atm / total * 100) : 0;
+      if(pieLeft){
+        pieLeft.textContent = `${sucPct.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
+      }
+      if(pieRight){
+        pieRight.textContent = `${atmPct.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
+      }
+    }
+    function updateFallidasChart(){
+      if(!fallidasChart) return;
+      const { labels, exitosas, fallidas } = computeFallidasSeries();
+      fallidasChart.data.labels = labels;
+      fallidasChart.data.datasets[0].data = exitosas;
+      fallidasChart.data.datasets[1].data = fallidas;
+      fallidasChart.update();
+    }
+    function refresh(){
+      ensureCharts();
+      renderKPIs();
+      updateMontosChart();
+      updateEntregasChart();
+      updateFallidasChart();
+    }
+    document.addEventListener('data:updated', (ev)=>{
+      const scope = ev?.detail?.scope;
+      if(!scope || ['ordenes','historial'].includes(scope)){
+        refresh();
+      }
+    });
+    return { refresh, computeKPIs };
+  })();
+
+  function refreshDashboardMetrics(){ DashboardMetrics.refresh(); }
+
+  refreshDashboardMetrics();
 
   const duplicateTracker = new Map();
   function warnDuplicates(scope, count){
@@ -2457,6 +2686,11 @@
   (function(){
     const tbody = document.getElementById('ordTbody'); const cntEl = document.getElementById('ordCount'); const qEl = document.getElementById('ordQ');
     const sel = (s,sc)=> (sc||document).querySelector(s);
+    function persistOrders(){
+      save(DB.ord, State.ord);
+      notifyDataUpdate('ordenes');
+      refreshDashboardMetrics();
+    }
     function render(){
       const q=(qEl.value||'').toLowerCase();
       const arr = State.ord.filter(r=> !q || [r.fecha, r.categoria, r.codigo, r.nombre, r.servicio].some(v => String(v||'').toLowerCase().includes(q)));
@@ -2476,11 +2710,7 @@
           const o = State.ord.find(x=>x.id===id);
           if(o){
             o.usar = !!ev.target.checked;
-            save(DB.ord, State.ord);
-            const routeAPI = globalThis.Route;
-            if(routeAPI && typeof routeAPI.refreshSources === 'function'){
-              routeAPI.refreshSources();
-            }
+            persistOrders();
           }
         });
       });
@@ -2515,12 +2745,14 @@
           moneda: sel('#fMon').value, denominacion: sel('#fDen').value, servicio: sel('#fServ').value, peso: parseNumber(sel('#fPeso').value)
         });
         if(!State.ord.find(x=>x.id===o.id)) State.ord.push(o);
-        save(DB.ord, State.ord); render(); showToast('Orden guardada');
+        persistOrders();
+        render();
+        showToast('Orden guardada');
       });
     }
     function delRow(id){
       const i = State.ord.findIndex(x=>x.id===id); if(i<0) return;
-      if(confirm('¿Eliminar orden?')){ State.ord.splice(i,1); save(DB.ord, State.ord); render(); }
+      if(confirm('¿Eliminar orden?')){ State.ord.splice(i,1); persistOrders(); render(); }
     }
 
     // Botones
@@ -2557,9 +2789,13 @@
         if(out.length){
           snapshotState('ord');
           State.ord = out;
-          save(DB.ord, State.ord);
+          persistOrders();
           render();
-          showImportUndoToast('Órdenes importadas', 'ord', ()=> render());
+          showImportUndoToast('Órdenes importadas', 'ord', ()=>{
+            render();
+            notifyDataUpdate('ordenes');
+            refreshDashboardMetrics();
+          });
         }
       };
       reader.readAsText(f); ev.target.value='';
@@ -3917,7 +4153,13 @@
         tiempo: document.getElementById('sumTiempo').textContent, montoPico: document.getElementById('sumMonto').textContent,
         aprobado: true
       };
-      State.hist.unshift(rec); save(DB.hist, State.hist); renderHist(); addRecent(rec); showToast('Ruta aprobada y guardada');
+      State.hist.unshift(rec);
+      save(DB.hist, State.hist);
+      renderHist();
+      addRecent(rec);
+      showToast('Ruta aprobada y guardada');
+      notifyDataUpdate('historial');
+      refreshDashboardMetrics();
     });
 
     function addRecent(entry = {}, options = {}){
@@ -4068,7 +4310,14 @@
       }));
       [...tbody.querySelectorAll('button[data-act="del"]')].forEach(b=> b.addEventListener('click', ()=>{
         const id = b.closest('tr').dataset.id;
-        const i = State.hist.findIndex(x=>x.id===id); if(i>=0 && confirm('¿Eliminar del historial?')){ State.hist.splice(i,1); save(DB.hist, State.hist); renderHist(); }
+        const i = State.hist.findIndex(x=>x.id===id);
+        if(i>=0 && confirm('¿Eliminar del historial?')){
+          State.hist.splice(i,1);
+          save(DB.hist, State.hist);
+          renderHist();
+          notifyDataUpdate('historial');
+          refreshDashboardMetrics();
+        }
       }));
       renderRecentFromHistory();
     }
@@ -4089,7 +4338,13 @@
             State.hist = arr;
             save(DB.hist, State.hist);
             renderHist();
-            showImportUndoToast('Historial importado', 'hist', ()=> renderHist());
+            notifyDataUpdate('historial');
+            refreshDashboardMetrics();
+            showImportUndoToast('Historial importado', 'hist', ()=>{
+              renderHist();
+              notifyDataUpdate('historial');
+              refreshDashboardMetrics();
+            });
           }
         }catch(err){
           alert('JSON inválido');
