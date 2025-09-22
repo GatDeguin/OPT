@@ -1417,6 +1417,59 @@
       if(!Array.isArray(State?.hist)) return [];
       return State.hist.filter(entry => entry && entry.aprobado);
     }
+    function getOrdersForMetrics(){
+      if(!Array.isArray(State?.ord)) return [];
+      const usable = State.ord.filter(ord => ord && ord.usar);
+      if(usable.length) return usable;
+      return State.ord.filter(Boolean);
+    }
+    function buildOrderSnapshots(){
+      const orders = getOrdersForMetrics();
+      if(!orders.length) return [];
+      const grouped = new Map();
+      orders.forEach((ord, idx)=>{
+        const dateKey = typeof ord.fecha === 'string' && ord.fecha.trim()
+          ? ord.fecha.trim()
+          : `__ord_${idx}`;
+        let bucket = grouped.get(dateKey);
+        if(!bucket){
+          bucket = {
+            fecha: typeof ord.fecha === 'string' ? ord.fecha : '',
+            nombre: (typeof ord.nombre === 'string' && ord.nombre.trim())
+              ? ord.nombre.trim()
+              : (typeof ord.codigo === 'string' && ord.codigo.trim()
+                ? ord.codigo.trim()
+                : 'Órdenes'),
+            montoPico: 0,
+            puntos: []
+          };
+        }
+        const monto = parseNumber(ord.monto);
+        if(Number.isFinite(monto) && ord.usar){
+          bucket.montoPico += Math.abs(monto);
+        }
+        if(ord.usar){
+          bucket.puntos.push({ tipo: ord.categoria || '' });
+        }else{
+          if(!bucket.fallidas) bucket.fallidas = [];
+          bucket.fallidas.push(ord);
+          bucket.noServidos = bucket.fallidas.length;
+        }
+        grouped.set(dateKey, bucket);
+      });
+      const entries = Array.from(grouped.values());
+      entries.sort((a, b)=>{
+        const da = Date.parse(typeof a.fecha === 'string' ? a.fecha : '');
+        const db = Date.parse(typeof b.fecha === 'string' ? b.fecha : '');
+        const daValid = Number.isFinite(da);
+        const dbValid = Number.isFinite(db);
+        if(daValid && dbValid) return db - da;
+        if(dbValid) return 1;
+        if(daValid) return -1;
+        return (b.fecha || '').localeCompare(a.fecha || '');
+      });
+      return entries;
+    }
     function extractPoints(entry){
       if(!entry) return [];
       if(Array.isArray(entry.puntos)) return entry.puntos.filter(Boolean);
@@ -1511,7 +1564,8 @@
     }
     function computeMontosData(limit = 5){
       const approved = getApprovedHistory();
-      const slice = approved.slice(0, limit);
+      const source = approved.length ? approved : buildOrderSnapshots();
+      const slice = source.slice(0, limit);
       if(!slice.length){
         return { labels:['Sin datos'], data:[0] };
       }
@@ -1527,9 +1581,10 @@
     }
     function computeEntregasData(){
       const approved = getApprovedHistory();
+      const source = approved.length ? approved : buildOrderSnapshots();
       let suc = 0;
       let atm = 0;
-      approved.forEach(entry => {
+      source.forEach(entry => {
         extractPoints(entry).forEach(p => {
           const tipo = typeof p?.tipo === 'string' ? p.tipo.toLowerCase() : '';
           if(tipo.includes('atm')){
@@ -1543,7 +1598,8 @@
     }
     function computeFallidasSeries(limit = 7){
       const approved = getApprovedHistory();
-      const slice = approved.slice(0, limit);
+      const source = approved.length ? approved : buildOrderSnapshots();
+      const slice = source.slice(0, limit);
       if(!slice.length){
         return { labels:['Sin datos'], exitosas:[0], fallidas:[0] };
       }
@@ -1575,16 +1631,18 @@
         return;
       }
       if(!montosChart && barCtx){
+        const { labels, data } = computeMontosData();
         montosChart = new Chart(barCtx, {
           type: 'bar',
-          data: { labels: [], datasets: [{ label: 'Montos (M)', data: [], backgroundColor: cssVar('--chart-accent') || 'rgba(67,164,109,.85)', borderRadius: 6, borderSkipped: false, maxBarThickness: 46 }]},
+          data: { labels, datasets: [{ label: 'Montos (M)', data, backgroundColor: cssVar('--chart-accent') || 'rgba(67,164,109,.85)', borderRadius: 6, borderSkipped: false, maxBarThickness: 46 }]},
           options: { animation:{duration:700}, plugins:{ legend:{display:false} }, scales:{ x:{ grid:{display:false} }, y:{ grid:{color:cssVar('--chart-grid')}, ticks:{ precision:0 } } } }
         });
       }
       if(!entregasChart && pieCtx){
+        const { suc, atm } = computeEntregasData();
         entregasChart = new Chart(pieCtx, {
           type:'doughnut',
-          data:{ labels:['Sucursales','ATMs'], datasets:[{ data:[0,0], backgroundColor:[cssVar('--chart-accent-2') || '#3b9562', cssVar('--brand-200') || '#c8ecd7'], borderColor:['#eaf7ef','#f3faf6'], borderWidth:2 }]},
+          data:{ labels:['Sucursales','ATMs'], datasets:[{ data:[suc, atm], backgroundColor:[cssVar('--chart-accent-2') || '#3b9562', cssVar('--brand-200') || '#c8ecd7'], borderColor:['#eaf7ef','#f3faf6'], borderWidth:2 }]},
           options:{ cutout:'62%', rotation:-40, plugins:{ legend:{display:false} } }
         });
       }
@@ -1597,11 +1655,12 @@
         const failGrad = ctx.createLinearGradient(0,0,0,height);
         failGrad.addColorStop(0, 'rgba(227,90,90,.20)');
         failGrad.addColorStop(1, 'rgba(227,90,90,0)');
+        const { labels, exitosas, fallidas } = computeFallidasSeries();
         fallidasChart = new Chart(ctx, {
           type:'line',
-          data:{ labels:[], datasets:[
-            { label:'Exitosas', data:[], borderColor: cssVar('--chart-accent-2') || '#3b9562', backgroundColor: successGrad, tension:.35, fill:true, pointRadius:3, pointBackgroundColor:'#fff', pointBorderWidth:2 },
-            { label:'Fallidas', data:[], borderColor: cssVar('--danger') || '#e35a5a', backgroundColor: failGrad, tension:.35, fill:true, pointRadius:3, pointBackgroundColor:'#fff', pointBorderWidth:2 }
+          data:{ labels, datasets:[
+            { label:'Exitosas', data:exitosas, borderColor: cssVar('--chart-accent-2') || '#3b9562', backgroundColor: successGrad, tension:.35, fill:true, pointRadius:3, pointBackgroundColor:'#fff', pointBorderWidth:2 },
+            { label:'Fallidas', data:fallidas, borderColor: cssVar('--danger') || '#e35a5a', backgroundColor: failGrad, tension:.35, fill:true, pointRadius:3, pointBackgroundColor:'#fff', pointBorderWidth:2 }
           ]},
           options:{ plugins:{ legend:{display:true, labels:{usePointStyle:true}} }, scales:{ x:{grid:{display:false}}, y:{grid:{color:cssVar('--chart-grid')}, beginAtZero:true, ticks:{ precision:0 }} } }
         });
