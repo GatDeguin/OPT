@@ -757,7 +757,7 @@
           <section class="card">
             <div class="card-body" style="overflow:auto; max-height:460px">
               <table class="table" id="atmTable" role="grid" aria-label="Listado de ATMs" style="border:0">
-                <thead><tr><th>Código</th><th>Nombre</th><th>Lat</th><th>Lng</th></tr></thead>
+                <thead><tr><th>Código</th><th>Nombre</th><th>Lat</th><th>Lng</th><th>Acciones</th></tr></thead>
                 <tbody id="atmTbody"></tbody>
               </table>
             </div>
@@ -1501,32 +1501,152 @@
     const cntEl = document.getElementById('atmCount');
     const qEl = document.getElementById('atmQ');
     let atmMap, atmMarker;
+    let lastFocusedAtmCodigo = null;
+    let pendingMapRefresh = true;
 
     function render(){
       const q = (qEl.value||'').toLowerCase();
-      const arr = State.atms.filter(r=> !q || r.codigo.includes(q) || (r.nombre||'').toLowerCase().includes(q));
-      cntEl.textContent = arr.length;
-      tbody.innerHTML = arr.map(r => `
-        <tr data-cod="${r.codigo}"><td>${r.codigo}</td><td>${r.nombre||''}</td><td class="right">${fmtCoord(r.lat)}</td><td class="right">${fmtCoord(r.lng)}</td></tr>
-      `).join('');
-      [...tbody.querySelectorAll('tr')].forEach(tr=>{
-        tr.addEventListener('click', ()=>{
-          const r = State.atms.find(x=>x.codigo===tr.dataset.cod);
-          if(r && atmMap){
-            const lat = parseNumber(r.lat);
-            const lng = parseNumber(r.lng);
-            if(!Number.isFinite(lat) || !Number.isFinite(lng)){
-              showToast('ATM sin coordenadas válidas');
-              return;
-            }
-            atmMarker.setLatLng([lat,lng]);
-            atmMap.flyTo([lat,lng], 12, {duration:.6});
-          }
+      const rows = State.atms
+        .map((rec, idx)=>({ rec, idx }))
+        .filter(({rec})=>{
+          const codigo = rec.codigo == null ? '' : String(rec.codigo);
+          const nombre = rec.nombre == null ? '' : String(rec.nombre);
+          return !q || codigo.toLowerCase().includes(q) || nombre.toLowerCase().includes(q);
+        });
+      cntEl.textContent = rows.length;
+      tbody.innerHTML = rows.map(({rec, idx}) => {
+        const codigo = sanitizeHTML(rec.codigo || '');
+        const nombre = sanitizeHTML(rec.nombre || '');
+        const lat = sanitizeHTML(fmtCoord(rec.lat));
+        const lng = sanitizeHTML(fmtCoord(rec.lng));
+        return `
+          <tr data-index="${idx}">
+            <td>${codigo}</td>
+            <td>${nombre}</td>
+            <td class="right">${lat}</td>
+            <td class="right">${lng}</td>
+            <td>
+              <div class="row" style="gap:8px;flex-wrap:nowrap">
+                <button class="chip" data-act="edit">Editar</button>
+                <button class="chip" data-act="del">Eliminar</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      rows.forEach((row, i)=>{
+        const tr = tbody.children[i];
+        if(!tr) return;
+        tr.addEventListener('click', (ev)=>{
+          if(ev.target.closest('button[data-act]')) return;
+          focusATM(row.rec);
+        });
+        tr.querySelector('button[data-act="edit"]')?.addEventListener('click', (ev)=>{
+          ev.preventDefault();
+          ev.stopPropagation();
+          editATM(row.idx);
+        });
+        tr.querySelector('button[data-act="del"]')?.addEventListener('click', (ev)=>{
+          ev.preventDefault();
+          ev.stopPropagation();
+          deleteATM(row.idx);
         });
       });
+      if(pendingMapRefresh){
+        if(refreshAtmMap()){
+          pendingMapRefresh = false;
+        }
+      }
       notifyDataUpdate('atms');
     }
     qEl?.addEventListener('input', render);
+
+    function focusATM(rec){
+      if(!rec || !atmMap || !atmMarker) return;
+      const lat = parseNumber(rec.lat);
+      const lng = parseNumber(rec.lng);
+      if(!Number.isFinite(lat) || !Number.isFinite(lng)){
+        showToast('ATM sin coordenadas válidas');
+        return;
+      }
+      const zoom = atmMap.getZoom() || 12;
+      atmMarker.setLatLng([lat, lng]);
+      atmMap.flyTo([lat, lng], zoom, {duration:.6});
+      if(rec.codigo !== undefined && rec.codigo !== null){
+        lastFocusedAtmCodigo = String(rec.codigo).trim();
+      }
+    }
+
+    function refreshAtmMap(){
+      if(!atmMap || !atmMarker) return false;
+      let target = null;
+      if(lastFocusedAtmCodigo){
+        target = State.atms.find(a => String(a.codigo ?? '').trim() === String(lastFocusedAtmCodigo));
+      }
+      if(!target){
+        target = State.atms.find(a => {
+          const lat = parseNumber(a.lat);
+          const lng = parseNumber(a.lng);
+          return Number.isFinite(lat) && Number.isFinite(lng);
+        });
+      }
+      if(!target) return false;
+      const lat = parseNumber(target.lat);
+      const lng = parseNumber(target.lng);
+      if(!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+      const zoom = atmMap.getZoom() || 10;
+      atmMarker.setLatLng([lat, lng]);
+      atmMap.setView([lat, lng], zoom);
+      if(target.codigo !== undefined && target.codigo !== null){
+        lastFocusedAtmCodigo = String(target.codigo).trim();
+      }
+      return true;
+    }
+
+    function editATM(idx){
+      const current = State.atms[idx];
+      if(!current) return;
+      const latVal = Number.isFinite(parseNumber(current.lat)) ? String(current.lat) : '';
+      const lngVal = Number.isFinite(parseNumber(current.lng)) ? String(current.lng) : '';
+      const html = `
+        <div class="field"><label>Código</label><input id="atmEditCodigo" value="${sanitizeHTML(current.codigo || '')}"></div>
+        <div class="field"><label>Nombre</label><input id="atmEditNombre" value="${sanitizeHTML(current.nombre || '')}"></div>
+        <div class="field"><label>Lat</label><input id="atmEditLat" value="${sanitizeHTML(latVal)}" placeholder="-34.6037"></div>
+        <div class="field"><label>Lng</label><input id="atmEditLng" value="${sanitizeHTML(lngVal)}" placeholder="-58.3816"></div>
+      `;
+      openSmallModal('Editar ATM', html, ()=>{
+        const codigo = (document.getElementById('atmEditCodigo')?.value || '').trim();
+        const nombre = (document.getElementById('atmEditNombre')?.value || '').trim();
+        const lat = parseNumber(document.getElementById('atmEditLat')?.value);
+        const lng = parseNumber(document.getElementById('atmEditLng')?.value);
+        if(!codigo || !nombre){ showToast('Completá código y nombre'); return false; }
+        if(!Number.isFinite(lat) || !Number.isFinite(lng)){ showToast('Ingresá coordenadas válidas'); return false; }
+        const duplicate = State.atms.some((atm, i)=> i !== idx && String(atm.codigo || '').trim().toLowerCase() === codigo.toLowerCase());
+        if(duplicate){ showToast('Ya existe un ATM con ese código'); return false; }
+        Object.assign(current, { codigo, nombre, lat, lng });
+        save(DB.atms, State.atms);
+        pendingMapRefresh = true;
+        render();
+        focusATM(State.atms[idx]);
+        showToast('ATM actualizado');
+        return true;
+      });
+    }
+
+    function deleteATM(idx){
+      const current = State.atms[idx];
+      if(!current) return;
+      const label = [current.codigo, current.nombre].filter(Boolean).join(' — ');
+      if(!confirm(`¿Eliminar ATM${label ? ` ${label}` : ''}?`)) return;
+      State.atms.splice(idx, 1);
+      save(DB.atms, State.atms);
+      if(current.codigo !== undefined && current.codigo !== null && String(current.codigo).trim() === String(lastFocusedAtmCodigo)){
+        lastFocusedAtmCodigo = null;
+      }
+      pendingMapRefresh = true;
+      render();
+      showToast('ATM eliminado');
+    }
 
     document.getElementById('atmImport')?.addEventListener('click', ()=> document.getElementById('atmImportInput').click());
     document.getElementById('atmImportInput')?.addEventListener('change', (ev)=>{
@@ -1544,7 +1664,14 @@
           const lat = parseNumber(cells[idx.lat]); const lng = parseNumber(cells[idx.lng]);
           return { codigo: (cells[idx.codigo]||'').trim().padStart(5,'0'), nombre:(cells[idx.nombre]||'').trim(), lat, lng };
         }).filter(r=>r.codigo && r.nombre && isFinite(r.lat) && isFinite(r.lng));
-        if(out.length){ State.atms = out; save(DB.atms, State.atms); render(); showToast('ATMs importados'); }
+        if(out.length){
+          State.atms = out;
+          save(DB.atms, State.atms);
+          lastFocusedAtmCodigo = null;
+          pendingMapRefresh = true;
+          render();
+          showToast('ATMs importados');
+        }
       };
       reader.readAsText(f);
       ev.target.value='';
@@ -1561,12 +1688,23 @@
       const initialAtm = firstValidAtm ? [firstValidAtm.lat, firstValidAtm.lng] : [-34.60, -58.38];
       atmMarker = L.marker(initialAtm).addTo(atmMap);
       atmMap.setView(initialAtm, 10);
+      if(!refreshAtmMap()){
+        pendingMapRefresh = true;
+      }else{
+        pendingMapRefresh = false;
+      }
     });
 
     document.getElementById('atmNew')?.addEventListener('click', ()=>{
       const cod = String(Math.max(0,...State.atms.map(r=>+r.codigo||0))+1).padStart(5,'0');
-      State.atms.push({codigo:cod, nombre:'Nuevo', lat:-34.6, lng:-58.38});
-      save(DB.atms, State.atms); render();
+      const nuevo = {codigo:cod, nombre:'Nuevo', lat:-34.6, lng:-58.38};
+      State.atms.push(nuevo);
+      save(DB.atms, State.atms);
+      lastFocusedAtmCodigo = nuevo.codigo != null ? String(nuevo.codigo).trim() : null;
+      pendingMapRefresh = true;
+      render();
+      focusATM(nuevo);
+      showToast('ATM creado');
     });
     document.getElementById('atmLocate')?.addEventListener('click', ()=>{
       if(!navigator.geolocation) return showToast('Sin geolocalización');
